@@ -4,8 +4,8 @@ type: software
 title: "BDLawCorpus: Browser-Based Archival Snapshot Tool for Bangladeshi Legal Texts"
 version: "1.2.0"
 date-released: "2024-01-15"
-url: "https://github.com/bdlawcorpus/bdlawcorpus"
-repository-code: "https://github.com/bdlawcorpus/bdlawcorpus"
+url: "https://github.com/codermillat/BDLawCorpus"
+repository-code: "https://github.com/codermillat/BDLawCorpus"
 license: MIT
 abstract: >-
   BDLawCorpus is a Chrome extension for capturing browser-rendered DOM text 
@@ -35,7 +35,7 @@ preferred-citation:
   authors:
     - name: "BDLawCorpus Contributors"
   year: 2024
-  url: "https://github.com/bdlawcorpus/bdlawcorpus"
+  url: "https://github.com/codermillat/BDLawCorpus"
   notes: >-
     Archival snapshot tool capturing browser-rendered DOM text via 
     element.textContent. Not a legal database. Not Gazette equivalent. 
