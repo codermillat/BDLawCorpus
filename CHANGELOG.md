@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Schema changes are **additive only**. Fields are never removed, only deprecated.
 
-## [3.1.0] - 2024-01-15
+## [3.1.0] - 2025-12-30
 
 ### Added
 - `trust_boundary` object with `can_trust` and `must_not_trust` arrays
@@ -35,7 +35,7 @@ Schema changes are **additive only**. Fields are never removed, only deprecated.
 ### Removed
 - None (additive-only policy)
 
-## [3.0.0] - 2024-01-01
+## [3.0.0] - 2025-12-01
 
 ### Added
 - Three-layer content model: `content_raw`, `content_normalized`, `content_corrected`
@@ -51,7 +51,7 @@ Schema changes are **additive only**. Fields are never removed, only deprecated.
 - Encoding fixes now logged with full audit trail
 - OCR corrections flagged but not applied in protected sections
 
-## [2.1.0] - 2023-12-15
+## [2.1.0] - 2025-11-15
 
 ### Added
 - Cross-reference detection with citation patterns
@@ -63,7 +63,7 @@ Schema changes are **additive only**. Fields are never removed, only deprecated.
 ### Changed
 - Enhanced quality assessment with cross-reference coverage
 
-## [2.0.0] - 2023-12-01
+## [2.0.0] - 2025-11-01
 
 ### Added
 - `identifiers` object with `internal_id` and clarifying `note`
@@ -78,7 +78,7 @@ Schema changes are **additive only**. Fields are never removed, only deprecated.
 - `act_number` deprecated in favor of `identifiers.internal_id`
 - Quality assessment now includes specific issue tracking
 
-## [1.2.0] - 2023-11-15
+## [1.2.0] - 2025-10-15
 
 ### Added
 - Batch queue processing support
@@ -91,7 +91,7 @@ Schema changes are **additive only**. Fields are never removed, only deprecated.
 - Queue items now include `volumeNumber`
 - Corpus exports include both successful and failed acts
 
-## [1.1.0] - 2023-11-01
+## [1.1.0] - 2025-10-01
 
 ### Added
 - Section marker detection (ধারা, অধ্যায়, তফসিল)
@@ -103,7 +103,7 @@ Schema changes are **additive only**. Fields are never removed, only deprecated.
 - Improved content selector hierarchy
 - Enhanced Bengali text preservation
 
-## [1.0.0] - 2023-10-15
+## [1.0.0] - 2025-09-15
 
 ### Added
 - Initial schema release

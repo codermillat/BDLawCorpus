@@ -207,7 +207,7 @@ When citing this methodology:
 @misc{bdlawcorpus_methodology,
   title = {BDLawCorpus Extraction Methodology},
   author = {BDLawCorpus Contributors},
-  year = {2024},
+  year = {2025},
   howpublished = {GitHub repository},
   note = {Browser-based DOM text extraction via element.textContent}
 }

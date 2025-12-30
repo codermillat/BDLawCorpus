@@ -207,8 +207,8 @@ This object MUST be included in every export.
     "schema_version": "3.1",
     "source": "bdlaws.minlaw.gov.bd",
     "source_url": "http://bdlaws.minlaw.gov.bd/act-details-1514.html",
-    "scraped_at": "2024-01-15T10:30:00.000Z",
-    "extracted_at": "2024-01-15T10:30:05.000Z",
+    "scraped_at": "2025-12-30T10:30:00.000Z",
+    "extracted_at": "2025-12-30T10:30:05.000Z",
     "scraping_method": "manual page-level extraction",
     "tool": "BDLawCorpus",
     "language": "bn",
@@ -274,7 +274,7 @@ Failed acts have `null` content fields. Content is NEVER inferred or auto-correc
 
 | Version | Date | Changes |
 |---------|------|---------|
-| 3.1 | 2024-01 | Added trust_boundary, ml_usage_warning, removed safe_for_ml_training |
-| 3.0 | 2024-01 | Three-layer content model, transformation audit |
-| 2.0 | 2023-12 | Cross-reference detection, quality assessment |
-| 1.0 | 2023-11 | Initial schema |
+| 3.1 | 2025-12-30 | Added trust_boundary, ml_usage_warning, removed safe_for_ml_training |
+| 3.0 | 2025-12-01 | Three-layer content model, transformation audit |
+| 2.0 | 2025-11-01 | Cross-reference detection, quality assessment |
+| 1.0 | 2025-09-15 | Initial schema |
