@@ -191,20 +191,20 @@ Factors affecting reproducibility:
 
 ## Citation
 
-See `CITATION.cff` for academic citation metadata.
+See [`CITATION.cff`](CITATION.cff) for academic citation metadata.
 
 ## Documentation
 
-- `ARCHITECTURE.md` — System design and data flow
-- `DATA_MODEL.md` — Export schema specification (v3.1)
-- `METHODOLOGY.md` — Extraction workflow for academic citation
-- `ETHICS.md` — Research ethics and access principles
-- `LIMITATIONS.md` — Known technical and epistemic limitations
-- `CHANGELOG.md` — Schema version history
+- [`ARCHITECTURE.md`](docs/ARCHITECTURE.md) — System design and data flow
+- [`DATA_MODEL.md`](docs/DATA_MODEL.md) — Export schema specification (v3.1)
+- [`METHODOLOGY.md`](docs/METHODOLOGY.md) — Extraction workflow for academic citation
+- [`ETHICS.md`](docs/ETHICS.md) — Research ethics and access principles
+- [`LIMITATIONS.md`](docs/LIMITATIONS.md) — Known technical and epistemic limitations
+- [`CHANGELOG.md`](CHANGELOG.md) — Schema version history
 
 ## License
 
-MIT License. See `LICENSE` file.
+MIT License. See [`LICENSE`](LICENSE) file.
 
 ## Acknowledgments
 
