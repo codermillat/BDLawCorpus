@@ -1,0 +1,122 @@
+# ============================================
+# BDLawCorpus .gitignore
+# ============================================
+
+# ============================================
+# OS Artifacts
+# ============================================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+
+# ============================================
+# Node.js / npm
+# ============================================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm
+.yarn-integrity
+.pnpm-debug.log*
+
+# ============================================
+# IDE / Editor
+# ============================================
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+*.sublime-workspace
+*.sublime-project
+.project
+.classpath
+.settings/
+
+# ============================================
+# Environment / Secrets
+# ============================================
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+secrets.json
+
+# ============================================
+# Build / Temp Files
+# ============================================
+dist/
+build/
+*.zip
+*.crx
+*.pem
+temp/
+tmp/
+.cache/
+
+# ============================================
+# Test Coverage
+# ============================================
+coverage/
+.nyc_output/
+*.lcov
+
+# ============================================
+# Logs
+# ============================================
+logs/
+*.log
+
+# ============================================
+# Exported Corpus Files
+# ============================================
+# JSON exports from the extension
+outputs/
+exports/
+corpus/
+bdlaw_*.json
+bdlaw_act_*.json
+bdlaw_volume_*.json
+bdlaw_corpus_*.json
+*_corpus_export.json
+
+# ============================================
+# Chrome Extension Development
+# ============================================
+# Packed extension files
+*.crx
+*.pem
+
+# Extension key (keep private)
+key.pem
+
+# ============================================
+# Research Data (if stored locally)
+# ============================================
+# Large dataset files
+*.jsonl
+*.ndjson
+data/
+datasets/
+
+# ============================================
+# Documentation Build
+# ============================================
+_site/
+.jekyll-cache/
+.sass-cache/
+
+# ============================================
+# Kiro Specs (keep tracked)
+# ============================================
+# Note: .kiro/specs/ is tracked for spec-driven development
+# Only ignore temporary files within
+.kiro/specs/**/temp/
+.kiro/specs/**/*.tmp

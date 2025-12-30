@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BDLawCorpus</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container" role="main">
+    <header class="header" role="banner">
+      <h1 id="app-title">BDLawCorpus</h1>
+      <p class="header-subtitle">Academic Legal Text Extraction</p>
+      
+      <!-- Domain Restriction Notice -->
+      <div id="domainNotice" class="domain-notice" role="alert">
+        <span class="domain-icon">🔒</span>
+        <span id="domainMessage">This tool only works on bdlaws.minlaw.gov.bd</span>
+      </div>
+    </header>
+
+    <!-- Page Type Indicator Section -->
+    <section id="pageTypeSection" class="page-type-section" role="region" aria-labelledby="page-type-title">
+      <h2 id="page-type-title" class="sr-only">Current Page Type</h2>
+      <div id="pageTypeIndicator" class="page-type-indicator unsupported">
+        <span class="page-type-icon" id="pageTypeIcon">⚠️</span>
+        <div class="page-type-info">
+          <span class="page-type-label" id="pageTypeLabel">Unsupported Page</span>
+          <span class="page-type-layer" id="pageTypeLayer"></span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Workflow Progress Indicator -->
+    <section id="workflowSection" class="workflow-section" role="region" aria-labelledby="workflow-title">
+      <h2 id="workflow-title" class="section-title">Research Workflow</h2>
+      <div class="workflow-steps" role="list">
+        <div class="workflow-step" id="step1" role="listitem" data-step="1">
+          <span class="step-number">1</span>
+          <span class="step-label">Browse Volumes</span>
+        </div>
+        <div class="workflow-connector"></div>
+        <div class="workflow-step" id="step2" role="listitem" data-step="2">
+          <span class="step-number">2</span>
+          <span class="step-label">Catalog Acts</span>
+        </div>
+        <div class="workflow-connector"></div>
+        <div class="workflow-step" id="step3" role="listitem" data-step="3">
+          <span class="step-number">3</span>
+          <span class="step-label">Extract Each Act</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Contextual Help Text Area -->
+    <section id="helpSection" class="help-section" role="region" aria-labelledby="help-title">
+      <h2 id="help-title" class="sr-only">Contextual Help</h2>
+      <div class="help-content" id="helpContent">
+        <p id="helpMessage">Navigate to bdlaws.minlaw.gov.bd to begin extracting legal texts.</p>
+      </div>
+    </section>
+
+    <main class="main">
+      <!-- Loading State -->
+      <div id="loadingDiv" class="loading hidden">
+        <div class="spinner"></div>
+        <span id="loadingText">Extracting content...</span>
+      </div>
+      
+      <!-- Error State -->
+      <div id="errorDiv" class="error hidden" role="alert">
+        <span class="error-icon">⚠️</span>
+        <span id="errorMessage"></span>
+      </div>
+
+      <!-- Extraction Controls -->
+      <section id="extractionControls" class="extraction-controls hidden" role="region" aria-labelledby="extraction-title">
+        <h2 id="extraction-title" class="sr-only">Extraction Controls</h2>
+        <button 
+          id="extractBtn" 
+          class="extract-btn"
+          aria-label="Extract content from current page"
+          disabled
+        >
+          <span class="btn-icon">📄</span>
+          <span id="extractBtnLabel">Extract Content</span>
+        </button>
+      </section>
+
+      <!-- Content Preview Section -->
+      <section id="contentDiv" class="content hidden" role="region" aria-labelledby="preview-title">
+        <h2 id="preview-title" class="section-title">Extraction Preview</h2>
+        
+        <!-- Stats Bar -->
+        <div class="stats-bar">
+          <div class="stat-item">
+            <span class="stat-label">Characters:</span>
+            <span id="charCount" class="stat-value">0</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">Words:</span>
+            <span id="wordCount" class="stat-value">0</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">Lines:</span>
+            <span id="lineCount" class="stat-value">0</span>
+          </div>
+        </div>
+
+        <!-- Section Marker Counts Display -->
+        <div id="sectionMarkersSection" class="section-markers-section">
+          <h3 class="subsection-title">Section Markers Detected</h3>
+          <div class="section-markers-grid">
+            <div class="marker-item marker-dhara">
+              <span class="marker-label">ধারা (Section)</span>
+              <span class="marker-count" id="dharaCount">0</span>
+            </div>
+            <div class="marker-item marker-adhyay">
+              <span class="marker-label">অধ্যায় (Chapter)</span>
+              <span class="marker-count" id="adhyayCount">0</span>
+            </div>
+            <div class="marker-item marker-tofsil">
+              <span class="marker-label">তফসিল (Schedule)</span>
+              <span class="marker-count" id="tofsilCount">0</span>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Preview Text Area -->
+        <div class="preview-container">
+          <div class="line-numbers" id="lineNumbers"></div>
+          <textarea 
+            id="extractedText" 
+            class="text-area" 
+            readonly 
+            placeholder="Extracted content will appear here..."
+            aria-label="Extracted content preview"
+          ></textarea>
+        </div>
+      </section>
+
+      <!-- Metadata Preview Section (Collapsible) -->
+      <section id="metadataSection" class="metadata-section hidden" role="region" aria-labelledby="metadata-title">
+        <button 
+          class="collapsible-header" 
+          id="metadataToggle"
+          aria-expanded="false"
+          aria-controls="metadataContent"
+        >
+          <h2 id="metadata-title" class="section-title">Metadata Preview</h2>
+          <span class="collapse-icon" id="metadataCollapseIcon">▼</span>
+        </button>
+        <div id="metadataContent" class="collapsible-content" aria-hidden="true">
+          <div class="metadata-grid">
+            <div class="metadata-item">
+              <span class="metadata-label">Source:</span>
+              <span class="metadata-value" id="metaSource">-</span>
+            </div>
+            <div class="metadata-item">
+              <span class="metadata-label">Source URL:</span>
+              <span class="metadata-value metadata-url" id="metaSourceUrl">-</span>
+            </div>
+            <div class="metadata-item">
+              <span class="metadata-label">Extraction Time:</span>
+              <span class="metadata-value" id="metaScrapedAt">-</span>
+            </div>
+            <div class="metadata-item">
+              <span class="metadata-label">Method:</span>
+              <span class="metadata-value" id="metaMethod">manual page-level extraction</span>
+            </div>
+            <div class="metadata-item">
+              <span class="metadata-label">Tool:</span>
+              <span class="metadata-value" id="metaTool">BDLawCorpus</span>
+            </div>
+            <div class="metadata-item">
+              <span class="metadata-label">Language:</span>
+              <span class="metadata-value" id="metaLanguage">bn (Bengali)</span>
+            </div>
+            <div class="metadata-item">
+              <span class="metadata-label">Purpose:</span>
+              <span class="metadata-value" id="metaPurpose">academic legal corpus construction</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Action Buttons -->
+      <div id="actionsDiv" class="actions hidden">
+        <button id="saveBtn" class="btn btn-primary" disabled>
+          <span class="btn-icon">💾</span>
+          <span class="btn-label">Save JSON</span>
+        </button>
+        
+        <button id="copyBtn" class="btn btn-secondary" disabled>
+          <span class="btn-icon">📋</span>
+          <span class="btn-label" id="copyBtnLabel">Copy</span>
+        </button>
+        
+        <button id="clearBtn" class="btn btn-tertiary">
+          <span class="btn-icon">🗑️</span>
+          <span class="btn-label">Clear</span>
+        </button>
+      </div>
+
+      <!-- Welcome/Initial State -->
+      <div id="welcomeDiv" class="welcome">
+        <div class="welcome-icon">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 2 2h10c1.1 0 2-.9 2-2V8l-4-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/>
+          </svg>
+        </div>
+        <h2>BDLawCorpus</h2>
+        <p>Academic extraction tool for Bangladeshi legal texts.</p>
+        <p class="welcome-hint">Navigate to <strong>bdlaws.minlaw.gov.bd</strong> to begin.</p>
+      </div>
+    </main>
+
+    <!-- Technical Details Section (Collapsible) -->
+    <section id="technicalSection" class="technical-section" role="region" aria-labelledby="technical-title">
+      <button 
+        class="collapsible-header" 
+        id="technicalToggle"
+        aria-expanded="false"
+        aria-controls="technicalContent"
+      >
+        <h2 id="technical-title" class="section-title-small">Technical Details</h2>
+        <span class="collapse-icon" id="technicalCollapseIcon">▼</span>
+      </button>
+      <div id="technicalContent" class="collapsible-content" aria-hidden="true">
+        <div class="technical-info">
+          <p><strong>Hardcoded Legal Selectors:</strong></p>
+          <code class="selector-list">h1, .act-title, #lawContent, .law-content, .act-details, .act-meta, .law-header, table, .schedule, #schedule</code>
+          <p class="technical-note">These selectors ensure consistent, reproducible extraction across all acts.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Ethical Disclaimer Footer -->
+    <footer class="disclaimer-footer" role="contentinfo">
+      <div class="disclaimer-content">
+        <span class="disclaimer-icon">⚖️</span>
+        <p class="disclaimer-text">
+          This tool performs manual extraction of publicly available legal texts for academic research. 
+          No automated crawling, modification, or interpretation is performed.
+        </p>
+      </div>
+    </footer>
+  </div>
+  
+  <script src="bdlaw-page-detector.js"></script>
+  <script src="bdlaw-metadata.js"></script>
+  <script src="bdlaw-extractor.js"></script>
+  <script src="bdlaw-export.js"></script>
+  <script src="text-processor.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

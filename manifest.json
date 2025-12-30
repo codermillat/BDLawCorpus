@@ -1,0 +1,47 @@
+{
+  "manifest_version": 3,
+  "name": "BDLawCorpus",
+  "short_name": "BDLawCorpus",
+  "version": "1.2.0",
+  "description": "Academic research tool for manual extraction of Bangladeshi legal texts from bdlaws.minlaw.gov.bd with provenance metadata for reproducible corpus construction",
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "downloads",
+    "storage",
+    "sidePanel",
+    "tabs"
+  ],
+  "host_permissions": [
+    "http://bdlaws.minlaw.gov.bd/*"
+  ],
+  "action": {
+    "default_title": "BDLawCorpus - Open Side Panel",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  },
+  "content_scripts": [
+    {
+      "matches": ["http://bdlaws.minlaw.gov.bd/*"],
+      "js": ["bdlaw-quality.js", "content.js"],
+      "run_at": "document_end",
+      "all_frames": false
+    }
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}

@@ -1,0 +1,47 @@
+cff-version: 1.2.0
+message: "If you use this software or dataset, please cite it as below."
+type: software
+title: "BDLawCorpus: Browser-Based Archival Snapshot Tool for Bangladeshi Legal Texts"
+version: "1.2.0"
+date-released: "2024-01-15"
+url: "https://github.com/bdlawcorpus/bdlawcorpus"
+repository-code: "https://github.com/bdlawcorpus/bdlawcorpus"
+license: MIT
+abstract: >-
+  BDLawCorpus is a Chrome extension for capturing browser-rendered DOM text 
+  from bdlaws.minlaw.gov.bd. It produces archival snapshots of legal texts 
+  for academic research in digital humanities, legal informatics, and 
+  low-resource language studies. The tool extracts text via element.textContent 
+  only, preserves immutable content_raw as the anchor for all derived outputs, 
+  and explicitly disclaims legal validity, Gazette equivalence, and ML training 
+  suitability.
+keywords:
+  - legal corpus
+  - Bangladesh law
+  - archival snapshot
+  - DOM extraction
+  - digital humanities
+  - legal informatics
+  - low-resource language
+  - Bengali legal text
+  - web archiving
+  - research tool
+authors:
+  - name: "BDLawCorpus Contributors"
+    affiliation: "Academic Research"
+preferred-citation:
+  type: software
+  title: "BDLawCorpus: Browser-Based Archival Snapshot Tool for Bangladeshi Legal Texts"
+  authors:
+    - name: "BDLawCorpus Contributors"
+  year: 2024
+  url: "https://github.com/bdlawcorpus/bdlawcorpus"
+  notes: >-
+    Archival snapshot tool capturing browser-rendered DOM text via 
+    element.textContent. Not a legal database. Not Gazette equivalent. 
+    Not validated for legal use or ML training.
+references:
+  - type: website
+    title: "Bangladesh Laws (Official Source)"
+    url: "http://bdlaws.minlaw.gov.bd"
+    notes: "Primary data source - Ministry of Law and Justice, Bangladesh"

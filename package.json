@@ -1,0 +1,32 @@
+{
+  "name": "bdlawcorpus",
+  "version": "1.0.0",
+  "description": "BDLawCorpus - Academic legal text extraction tool for bdlaws.minlaw.gov.bd",
+  "main": "background.js",
+  "scripts": {
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage"
+  },
+  "keywords": [
+    "chrome-extension",
+    "legal-corpus",
+    "bangladesh-laws",
+    "academic-research"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "fast-check": "^3.15.0",
+    "jest": "^29.7.0",
+    "jest-environment-jsdom": "^29.7.0"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "testMatch": [
+      "**/tests/**/*.test.js",
+      "**/tests/**/*.property.test.js"
+    ],
+    "verbose": true
+  }
+}

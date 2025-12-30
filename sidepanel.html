@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BDLawCorpus</title>
+  <link rel="stylesheet" href="sidepanel.css">
+</head>
+<body>
+  <div class="panel-container">
+    <!-- Header -->
+    <header class="panel-header">
+      <div class="header-main">
+        <h1>📚 BDLawCorpus</h1>
+        <span class="version">v1.2.0</span>
+      </div>
+      <p class="header-subtitle">Academic Legal Corpus Builder</p>
+    </header>
+
+    <!-- Connection Status -->
+    <div id="connectionStatus" class="connection-status disconnected">
+      <span class="status-dot"></span>
+      <span id="statusText">Not connected to bdlaws.minlaw.gov.bd</span>
+    </div>
+
+    <!-- Tab Navigation -->
+    <nav class="tab-nav">
+      <button class="tab-btn active" data-tab="capture">📄 Capture</button>
+      <button class="tab-btn" data-tab="queue">📋 Queue <span id="queueBadge" class="badge hidden">0</span></button>
+      <button class="tab-btn" data-tab="export">💾 Export</button>
+    </nav>
+
+    <!-- Tab Content -->
+    <main class="tab-content">
+      <!-- CAPTURE TAB -->
+      <section id="captureTab" class="tab-panel active">
+        <!-- Page Info -->
+        <div id="pageInfo" class="page-info">
+          <div class="page-type-badge" id="pageTypeBadge">
+            <span class="badge-icon">⚠️</span>
+            <span class="badge-text">Unknown Page</span>
+          </div>
+          <p id="pageUrl" class="page-url">Navigate to bdlaws.minlaw.gov.bd</p>
+        </div>
+
+        <!-- Capture Actions -->
+        <div class="capture-actions">
+          <button id="captureVolumeBtn" class="action-btn volume-btn" disabled>
+            <span class="btn-icon">📖</span>
+            <span class="btn-text">Capture Volume Catalog</span>
+          </button>
+          <button id="captureActBtn" class="action-btn act-btn" disabled>
+            <span class="btn-icon">📄</span>
+            <span class="btn-text">Capture This Act</span>
+          </button>
+          <button id="addToQueueBtn" class="action-btn queue-btn" disabled>
+            <span class="btn-icon">➕</span>
+            <span class="btn-text">Add to Queue</span>
+          </button>
+        </div>
+
+        <!-- Current Volume Info -->
+        <div id="currentVolumeSection" class="current-volume hidden">
+          <h3>📖 Current Volume</h3>
+          <div id="volumeInfo" class="volume-info">
+            <p><strong>Volume:</strong> <span id="volumeNumber">-</span></p>
+            <p><strong>Acts Found:</strong> <span id="volumeActCount">0</span></p>
+          </div>
+          <div class="volume-actions">
+            <button id="addAllActsBtn" class="action-btn secondary">
+              <span class="btn-icon">📥</span>
+              <span class="btn-text">Add All Acts to Queue</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Preview Section -->
+        <div id="previewSection" class="preview-section hidden">
+          <h3>👁️ Preview</h3>
+          <div class="preview-stats">
+            <span><strong>Title:</strong> <span id="previewTitle">-</span></span>
+            <span><strong>Characters:</strong> <span id="previewChars">0</span></span>
+            <span><strong>Sections:</strong> <span id="previewSections">-</span></span>
+          </div>
+          <div id="amendmentStats" class="amendment-stats hidden">
+            <span class="amendment-label">⚠️ Amendments:</span>
+            <span id="previewAmendments">-</span>
+          </div>
+          <div id="previewText" class="preview-text" readonly>Content preview...</div>
+        </div>
+      </section>
+
+      <!-- QUEUE TAB -->
+      <section id="queueTab" class="tab-panel">
+        <div class="queue-header">
+          <h3>📋 Extraction Queue</h3>
+          <div class="queue-stats">
+            <span id="queueTotal">0</span> items
+            (<span id="queuePending">0</span> pending, <span id="queueCompleted">0</span> done)
+          </div>
+        </div>
+
+        <!-- Resume Processing Prompt -->
+        <!-- Requirements: 8.5 - Offer to resume interrupted queue processing -->
+        <div id="resumeProcessingSection" class="resume-processing-section hidden">
+          <div class="resume-processing-header">
+            <span class="resume-icon">⚠️</span>
+            <span class="resume-title">Interrupted Processing Detected</span>
+          </div>
+          <div class="resume-processing-content">
+            <p id="resumeProcessingMessage">Queue processing was interrupted.</p>
+            <p class="resume-timestamp" id="resumeProcessingTimestamp">Started: -</p>
+          </div>
+          <div class="resume-processing-actions">
+            <button id="resumeProcessingBtn" class="action-btn primary">
+              <span class="btn-icon">▶️</span>
+              <span class="btn-text">Resume Processing</span>
+            </button>
+            <button id="dismissResumeBtn" class="action-btn secondary">
+              <span class="btn-icon">✕</span>
+              <span class="btn-text">Dismiss</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Queue Settings -->
+        <!-- Requirements: 1.6, 10.6 - Display and allow modifying queue settings -->
+        <div class="queue-settings-section">
+          <div class="queue-settings-header">
+            <h4>⚙️ Queue Settings</h4>
+            <button id="toggleQueueSettingsBtn" class="action-btn secondary small">
+              <span class="btn-icon">▼</span>
+              <span class="btn-text">Show</span>
+            </button>
+          </div>
+          <div id="queueSettingsContent" class="queue-settings-content hidden">
+            <div class="setting-row">
+              <label for="extractionDelayInput">Extraction Delay (seconds)</label>
+              <input type="number" id="extractionDelayInput" min="1" max="30" value="3" step="1">
+              <span class="setting-hint">Wait time between extractions (1-30s)</span>
+            </div>
+            <div class="setting-row">
+              <label for="minContentThresholdInput">Min Content Threshold (chars)</label>
+              <input type="number" id="minContentThresholdInput" min="50" max="1000" value="100" step="10">
+              <span class="setting-hint">Minimum content length to consider valid (50-1000)</span>
+            </div>
+            <div class="setting-row">
+              <label for="maxRetryAttemptsInput">Max Retry Attempts</label>
+              <input type="number" id="maxRetryAttemptsInput" min="1" max="5" value="3" step="1">
+              <span class="setting-hint">Maximum retries for failed extractions (1-5)</span>
+            </div>
+            <div class="setting-row">
+              <label for="retryBaseDelayInput">Retry Base Delay (seconds)</label>
+              <input type="number" id="retryBaseDelayInput" min="2" max="30" value="5" step="1">
+              <span class="setting-hint">Base delay for retry backoff (2-30s)</span>
+            </div>
+            <button id="saveQueueSettingsBtn" class="action-btn primary small">
+              <span class="btn-icon">💾</span>
+              <span class="btn-text">Save Settings</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Queue Controls -->
+        <div class="queue-controls">
+          <button id="processQueueBtn" class="action-btn primary" disabled>
+            <span class="btn-icon">▶️</span>
+            <span class="btn-text">Process Queue</span>
+          </button>
+          <button id="clearQueueBtn" class="action-btn danger" disabled>
+            <span class="btn-icon">🗑️</span>
+            <span class="btn-text">Clear All</span>
+          </button>
+        </div>
+
+        <!-- Queue List -->
+        <div id="queueList" class="queue-list">
+          <p class="empty-message">Queue is empty. Add acts from a volume page.</p>
+        </div>
+
+        <!-- Processing Status -->
+        <!-- Requirements: 7.1, 7.2, 7.3, 7.4, 7.5, 7.6 - Show processing status with counts -->
+        <div id="processingStatus" class="processing-status hidden">
+          <div class="progress-bar">
+            <div id="progressFill" class="progress-fill" style="width: 0%"></div>
+          </div>
+          <p id="processingText">Processing...</p>
+          <div class="processing-stats">
+            <span class="stat-success">✅ <span id="processSuccessCount">0</span></span>
+            <span class="stat-failed">❌ <span id="processFailedCount">0</span></span>
+            <span class="stat-retried">🔁 <span id="processRetriedCount">0</span></span>
+          </div>
+        </div>
+
+        <!-- Failed Extractions Section -->
+        <!-- Requirements: 4.4, 4.5, 4.6 - Display failed extractions with details -->
+        <div id="failedExtractionsSection" class="failed-extractions-section hidden">
+          <div class="failed-extractions-header">
+            <h4>❌ Failed Extractions (<span id="failedExtractionsCount">0</span>)</h4>
+            <button id="clearFailedExtractionsBtn" class="action-btn danger small">
+              <span class="btn-icon">🗑️</span>
+              <span class="btn-text">Clear</span>
+            </button>
+          </div>
+          <div id="failedExtractionsList" class="failed-extractions-list">
+            <p class="empty-message">No failed extractions.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- EXPORT TAB -->
+      <section id="exportTab" class="tab-panel">
+        <div class="export-header">
+          <h3>💾 Export Data</h3>
+          <p class="export-description">Export captured acts as individual JSON files.</p>
+        </div>
+
+        <!-- Export Stats -->
+        <div class="export-stats">
+          <div class="stat-card">
+            <span class="stat-number" id="exportActCount">0</span>
+            <span class="stat-label">Acts Captured</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-number" id="exportVolumeCount">0</span>
+            <span class="stat-label">Volumes</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-number" id="exportTotalChars">0</span>
+            <span class="stat-label">Total Characters</span>
+          </div>
+        </div>
+
+        <!-- Corpus Statistics Section -->
+        <!-- Requirements: 8.3 - Show corpus-level statistics -->
+        <div id="corpusStatsSection" class="corpus-stats-section hidden">
+          <h4>📊 Corpus Statistics</h4>
+          <div class="corpus-stats-grid">
+            <div class="corpus-stat-item">
+              <span class="corpus-stat-label">Cross-Reference Coverage</span>
+              <span class="corpus-stat-value" id="corpusCoveragePercent">0%</span>
+            </div>
+            <div class="corpus-stat-item">
+              <span class="corpus-stat-label">Referenced Acts in Corpus</span>
+              <span class="corpus-stat-value" id="corpusReferencedInCorpus">0</span>
+            </div>
+            <div class="corpus-stat-item">
+              <span class="corpus-stat-label">Referenced Acts Missing</span>
+              <span class="corpus-stat-value" id="corpusReferencedMissing">0</span>
+            </div>
+            <div class="corpus-stat-item">
+              <span class="corpus-stat-label">Extraction Date Range</span>
+              <span class="corpus-stat-value" id="corpusDateRange">N/A</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Duplicate Warning Section -->
+        <!-- Requirements: 7.1, 7.4, 7.5, 11.7 - Duplicate warning UI with language information -->
+        <div id="duplicateWarningSection" class="duplicate-warning-section hidden">
+          <div class="duplicate-warning-header">
+            <span class="warning-icon">⚠️</span>
+            <span class="warning-title">Duplicate Detected</span>
+          </div>
+          <div class="duplicate-warning-content">
+            <p id="duplicateWarningMessage">This act already exists in the corpus.</p>
+            <p class="duplicate-timestamp">Previous capture: <span id="duplicatePreviousTimestamp">-</span></p>
+            <!-- Requirements: 11.7 - Display language information in duplicate warning -->
+            <div id="duplicateLanguageInfo" class="duplicate-language-info hidden">
+              <p class="language-comparison">
+                <span class="language-label">Existing version:</span>
+                <span id="duplicateExistingLanguage" class="language-badge">-</span>
+              </p>
+              <p class="language-comparison">
+                <span class="language-label">New version:</span>
+                <span id="duplicateNewLanguage" class="language-badge">-</span>
+              </p>
+              <p id="duplicateLanguageMessage" class="language-message"></p>
+            </div>
+          </div>
+          <div class="duplicate-warning-actions">
+            <button id="forceReExtractBtn" class="action-btn warning">
+              <span class="btn-icon">🔄</span>
+              <span class="btn-text">Force Re-extract</span>
+            </button>
+            <button id="dismissDuplicateBtn" class="action-btn secondary">
+              <span class="btn-icon">✕</span>
+              <span class="btn-text">Dismiss</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Export Options -->
+        <div class="export-options">
+          <label class="checkbox-label">
+            <input type="checkbox" id="includeMetadata" checked>
+            Include provenance metadata
+          </label>
+          <label class="checkbox-label">
+            <input type="checkbox" id="prettyPrint" checked>
+            Pretty print JSON
+          </label>
+          <label class="checkbox-label">
+            <input type="checkbox" id="applyTextCleaning">
+            Apply text cleaning (fix encoding errors, OCR artifacts)
+          </label>
+        </div>
+
+        <!-- Cleaning Summary Section -->
+        <!-- Requirements: 8.1, 8.2, 8.3 - Show transformation summary when cleaning is enabled -->
+        <div id="cleaningSummarySection" class="cleaning-summary-section hidden">
+          <h4>🧹 Text Cleaning Preview</h4>
+          <p class="section-description">Transformations that will be applied during export:</p>
+          <div id="cleaningSummaryContent" class="cleaning-summary-content">
+            <p class="empty-message">No transformations detected.</p>
+          </div>
+        </div>
+
+        <!-- Export Actions -->
+        <div class="export-actions">
+          <button id="exportAllBtn" class="action-btn primary large" disabled>
+            <span class="btn-icon">📦</span>
+            <span class="btn-text">Export All as Separate Files</span>
+          </button>
+          <button id="exportVolumeCatalogBtn" class="action-btn secondary" disabled>
+            <span class="btn-icon">📖</span>
+            <span class="btn-text">Export Volume Catalog</span>
+          </button>
+        </div>
+
+        <!-- Research Documents Export -->
+        <div class="research-docs-section">
+          <h4>📚 Research Documents</h4>
+          <p class="section-description">Export corpus manifest and research documentation for academic use.</p>
+          <div class="research-docs-actions">
+            <button id="exportManifestBtn" class="action-btn secondary" disabled>
+              <span class="btn-icon">📋</span>
+              <span class="btn-text">Export Corpus Manifest</span>
+            </button>
+            <button id="exportResearchDocsBtn" class="action-btn secondary" disabled>
+              <span class="btn-icon">📄</span>
+              <span class="btn-text">Export Research Documents</span>
+            </button>
+          </div>
+          <p class="research-docs-note">Research documents include README.md, CITATION.cff, and DATA_DICTIONARY.md</p>
+        </div>
+
+        <!-- Manifest Viewer Section -->
+        <!-- Requirements: 8.4 - Display corpus manifest contents and missing referenced acts -->
+        <div id="manifestViewerSection" class="manifest-viewer-section hidden">
+          <h4>📋 Corpus Manifest</h4>
+          <div class="manifest-viewer-toggle">
+            <button id="toggleManifestViewerBtn" class="action-btn secondary small">
+              <span class="btn-icon">👁️</span>
+              <span class="btn-text">Show Manifest Details</span>
+            </button>
+          </div>
+          <div id="manifestViewerContent" class="manifest-viewer-content hidden">
+            <div class="manifest-section">
+              <h5>Acts in Corpus</h5>
+              <div id="manifestActsList" class="manifest-list">
+                <p class="empty-message">No acts in manifest.</p>
+              </div>
+            </div>
+            <div class="manifest-section">
+              <h5>Missing Referenced Acts</h5>
+              <p class="manifest-section-note">Acts referenced in cross-references but not yet captured.</p>
+              <div id="manifestMissingActsList" class="manifest-list missing-acts">
+                <p class="empty-message">No missing referenced acts.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Export Progress -->
+        <div id="exportProgress" class="export-progress hidden">
+          <div class="progress-bar">
+            <div id="exportProgressFill" class="progress-fill" style="width: 0%"></div>
+          </div>
+          <p id="exportProgressText">Exporting...</p>
+        </div>
+
+        <!-- Captured Acts List for Individual Export -->
+        <div class="captured-acts-section">
+          <h4>📄 Captured Acts</h4>
+          <p class="section-description">Click on an act to view quality details, or click the export icon to download.</p>
+          <div id="capturedActsList" class="captured-acts-list">
+            <p class="empty-message">No acts captured yet.</p>
+          </div>
+        </div>
+
+        <!-- Quality Details Panel -->
+        <!-- Requirements: 7.4 - Display all detected issues with descriptions and suggested fixes -->
+        <div id="qualityDetailsPanel" class="quality-details-panel hidden">
+          <div class="quality-details-header">
+            <h4>🔍 Quality Details: <span id="qualityDetailsActTitle">-</span></h4>
+            <button id="closeQualityDetailsBtn" class="quality-details-close" title="Close">×</button>
+          </div>
+          <div id="qualityDetailsContent">
+            <p class="empty-message">Select an act to view quality details.</p>
+          </div>
+        </div>
+
+        <!-- Transformation Log Viewer -->
+        <!-- Requirements: 2.5 - Display all transformations with risk levels -->
+        <div id="transformationLogSection" class="transformation-log-section hidden">
+          <div class="transformation-log-header">
+            <h4>📝 Transformation Log: <span id="transformationLogActTitle">-</span></h4>
+            <button id="closeTransformationLogBtn" class="quality-details-close" title="Close">×</button>
+          </div>
+          <div class="transformation-log-stats">
+            <span>Total: <strong id="transformationLogTotal">0</strong></span>
+            <span> | Applied: <strong id="transformationLogApplied">0</strong></span>
+            <span> | Flagged: <strong id="transformationLogFlagged">0</strong></span>
+          </div>
+          <div id="transformationLogContent" class="transformation-log-list">
+            <p class="transformation-log-empty">No transformations recorded.</p>
+          </div>
+        </div>
+
+        <!-- Protected Section Indicators -->
+        <!-- Requirements: 17.4 - Show which sections are protected -->
+        <div id="protectedSectionsSection" class="protected-sections-section hidden">
+          <h4>🛡️ Protected Sections: <span id="protectedSectionsActTitle">-</span></h4>
+          <div id="protectedSectionsList" class="protected-section-list">
+            <p class="empty-message">No protected sections detected.</p>
+          </div>
+          <div id="flaggedArtifactsSection" class="flagged-artifacts-section hidden">
+            <h5>⚠️ Flagged OCR Artifacts (Not Corrected)</h5>
+            <div id="flaggedArtifactsList" class="flagged-artifact-list">
+              <p class="empty-message">No flagged artifacts.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Cleaning Preview Section -->
+        <!-- Requirements: 9.2, 9.3 - Show before/after comparison when cleaning is enabled -->
+        <div id="cleaningPreviewSection" class="cleaning-preview-section hidden">
+          <h4>🧹 Cleaning Preview</h4>
+          <div class="cleaning-preview-toggle">
+            <button id="toggleCleaningPreviewBtn" class="action-btn secondary small">
+              <span class="btn-icon">👁️</span>
+              <span class="btn-text">Show Before/After Comparison</span>
+            </button>
+          </div>
+          <div id="cleaningPreviewContent" class="cleaning-preview-content hidden">
+            <div class="cleaning-comparison">
+              <div class="cleaning-comparison-column">
+                <span class="cleaning-comparison-label">Before (Original)</span>
+                <div id="cleaningPreviewBefore" class="cleaning-comparison-text before"></div>
+              </div>
+              <div class="cleaning-comparison-column">
+                <span class="cleaning-comparison-label">After (Cleaned)</span>
+                <div id="cleaningPreviewAfter" class="cleaning-comparison-text after"></div>
+              </div>
+            </div>
+            <div class="cleaning-stats">
+              <div class="cleaning-stats-grid">
+                <div class="cleaning-stat-item">
+                  <span class="cleaning-stat-number" id="cleaningStatEncoding">0</span>
+                  <span class="cleaning-stat-label">Encoding Fixes</span>
+                </div>
+                <div class="cleaning-stat-item">
+                  <span class="cleaning-stat-number" id="cleaningStatOcr">0</span>
+                  <span class="cleaning-stat-label">OCR Corrections</span>
+                </div>
+                <div class="cleaning-stat-item">
+                  <span class="cleaning-stat-number" id="cleaningStatFormatting">0</span>
+                  <span class="cleaning-stat-label">Formatting Fixes</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Clear All Data -->
+        <div class="clear-data-section">
+          <button id="clearAllDataBtn" class="action-btn danger">
+            <span class="btn-icon">🗑️</span>
+            <span class="btn-text">Clear All Data</span>
+          </button>
+          <p class="clear-data-warning">This will permanently delete all captured acts, queue items, and volume data.</p>
+        </div>
+      </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="panel-footer">
+      <p class="disclaimer">
+        ⚖️ Manual extraction for academic research only. No automated crawling.
+      </p>
+    </footer>
+  </div>
+
+  <script src="bdlaw-page-detector.js"></script>
+  <script src="bdlaw-metadata.js"></script>
+  <script src="bdlaw-extractor.js"></script>
+  <script src="bdlaw-export.js"></script>
+  <script src="bdlaw-queue.js"></script>
+  <script src="bdlaw-corpus-manifest.js"></script>
+  <script src="bdlaw-quality.js"></script>
+  <script src="sidepanel.js"></script>
+</body>
+</html>
