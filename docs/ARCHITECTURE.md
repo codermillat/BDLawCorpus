@@ -47,6 +47,7 @@ BDLawCorpus is a Chrome extension that captures browser-rendered DOM text from b
 | Export | `bdlaw-export.js` | JSON formatting, file generation |
 | Queue | `bdlaw-queue.js` | Batch processing, deduplication |
 | Manifest | `bdlaw-corpus-manifest.js` | Corpus tracking, statistics |
+| Storage | `bdlaw-storage.js` | Durable persistence, crash recovery |
 
 ### Extension Components
 
@@ -132,7 +133,57 @@ All extraction functionality is disabled on any other domain. This is enforced a
 
 ## Storage Architecture
 
-### Chrome Storage (Persistent)
+### Durable Persistence Layer
+
+The extension uses a multi-backend storage system with automatic fallback for crash-safe persistence. See [STORAGE_API.md](./STORAGE_API.md) for complete API documentation.
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                    Storage Abstraction Layer                         │
+│  ┌─────────────────────────────────────────────────────────────┐    │
+│  │                    StorageManager                            │    │
+│  │  - Atomic per-act persistence with receipts                 │    │
+│  │  - Write-ahead logging for crash recovery                   │    │
+│  │  - Queue state reconstruction from receipts                 │    │
+│  │  - Storage quota monitoring                                 │    │
+│  └─────────────────────────────────────────────────────────────┘    │
+│                              │                                       │
+│         ┌────────────────────┼────────────────────┐                 │
+│         ▼                    ▼                    ▼                 │
+│  ┌─────────────┐      ┌─────────────┐      ┌─────────────┐         │
+│  │ IndexedDB   │      │ Chrome      │      │ Memory      │         │
+│  │ (primary)   │      │ Storage     │      │ (fallback)  │         │
+│  │ 50MB+       │      │ ~10MB       │      │ volatile    │         │
+│  └─────────────┘      └─────────────┘      └─────────────┘         │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### IndexedDB Schema (Primary Storage)
+
+```javascript
+{
+  // Object stores
+  "acts": {
+    keyPath: "act_number",
+    indexes: ["by_volume", "by_captured_at", "by_content_hash"]
+  },
+  "receipts": {
+    keyPath: "receipt_id",
+    indexes: ["by_act_id", "by_persisted_at"]
+  },
+  "wal": {
+    keyPath: "entry_id",
+    indexes: ["by_act_id", "by_type", "by_timestamp"]
+  },
+  "audit_log": {
+    keyPath: "log_id",
+    autoIncrement: true,
+    indexes: ["by_timestamp", "by_operation"]
+  }
+}
+```
+
+### Chrome Storage (Queue Metadata)
 
 ```javascript
 {
@@ -141,15 +192,19 @@ All extraction functionality is disabled on any other domain. This is enforced a
     { id, actNumber, title, url, status, addedAt }
   ],
   
-  // Captured acts
-  "bdlaw_captured_acts": [
-    { actNumber, title, content, metadata, capturedAt }
-  ],
+  // Export checkpoint state
+  "bdlaw_export_checkpoint_state": {
+    last_export_timestamp, acts_since_export, threshold
+  },
   
-  // Corpus manifest
-  "bdlaw_corpus_manifest": {
-    version, created_at, updated_at,
-    corpus_stats, acts, volumes
+  // Export progress state
+  "bdlaw_export_progress_state": {
+    export_id, total_acts, current_index, status
+  },
+  
+  // Migration state
+  "bdlaw_migration_state": {
+    status, migrated_count, completed_at
   }
 }
 ```
@@ -165,12 +220,21 @@ All extraction functionality is disabled on any other domain. This is enforced a
     max_retry_attempts
   },
   
-  // Extraction audit log
-  "bdlaw_extraction_log": [
-    { timestamp, operation, internal_id, result }
-  ]
+  // Processing state backup (for lifecycle recovery)
+  "bdlaw_processing_state_backup": {
+    isProcessing, currentActId, queueStats
+  }
 }
 ```
+
+### Data Precedence (Authoritative Sources)
+
+In case of conflict, the following precedence order is used:
+
+1. **Extraction receipts** (append-only log) - Ultimate source of truth
+2. **Persisted act records** (IndexedDB) - Actual content data
+3. **Queue metadata** (chrome.storage) - Processing state
+4. **UI counters** (in-memory) - Derived from above sources
 
 ## Security Model
 
@@ -232,6 +296,10 @@ FAILURE_REASONS: {
 
 ### Storage Limits
 
-- Chrome storage quota: ~5MB for sync, ~10MB for local
-- Extraction log capped at 1000 entries
-- Large corpus exports use downloads API
+- **IndexedDB quota**: ~50% of disk space (primary storage)
+- **Chrome storage quota**: ~10MB for local (fallback)
+- **Warning threshold**: 80% usage
+- **Critical threshold**: 95% usage (pauses processing)
+- **Export checkpoint**: Prompts after N acts (default 50, configurable 10-200)
+- **Extraction log capped**: 1000 entries
+- **Large corpus exports**: Use downloads API

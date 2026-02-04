@@ -43,7 +43,12 @@
       successCount: 0,
       failedCount: 0,
       retriedCount: 0
-    }
+    },
+    // Durable Persistence Hardening state
+    storageBackend: null,        // Requirements: 10.3 - Track current storage backend
+    storageDegraded: false,      // Requirements: 10.4 - Track degraded mode
+    processingPaused: false,     // Requirements: 2.3, 2.6 - Track quota-based pause
+    exportPromptDisplayed: false // Requirements: 2.3 - Track export prompt state
   };
 
   // ============================================
@@ -53,12 +58,50 @@
 
   // ============================================
   // STORAGE HELPERS
+  // Requirements: 1.1, 4.3, 5.2, 6.1, 6.2, 6.3 - Durable Persistence Hardening
   // ============================================
+  
+  /**
+   * Initialize storage using StorageManager
+   * Requirements: 4.3, 5.2, 6.3 - Use StorageManager.initialize() on load
+   * 
+   * @returns {Promise<{backend: string, migrated: boolean, degraded: boolean}>}
+   */
+  async function initializeStorage() {
+    try {
+      // Initialize StorageManager (handles backend selection and migration)
+      const initResult = await StorageManager.initialize();
+      
+      console.log('StorageManager initialized:', {
+        backend: initResult.backend,
+        migrated: initResult.migrated,
+        degraded: initResult.degraded
+      });
+      
+      // Store initialization result for UI display
+      state.storageBackend = initResult.backend;
+      state.storageDegraded = initResult.degraded;
+      
+      return initResult;
+    } catch (e) {
+      console.error('StorageManager initialization failed:', e);
+      // Set degraded state
+      state.storageBackend = 'unknown';
+      state.storageDegraded = true;
+      throw e;
+    }
+  }
+  
+  /**
+   * Load state from storage using StorageManager and QueueReconstructor
+   * Requirements: 4.3, 5.2, 6.3 - Reconstruct queue state from authoritative receipts
+   */
   async function loadFromStorage() {
     try {
+      // Load queue metadata and configuration from chrome.storage.local
+      // (Queue state, volume, settings remain in chrome.storage per design)
       const result = await chrome.storage.local.get([
         STORAGE_KEYS.QUEUE,
-        STORAGE_KEYS.CAPTURED_ACTS,
         STORAGE_KEYS.CURRENT_VOLUME,
         STORAGE_KEYS.EXPORT_HISTORY,
         STORAGE_KEYS.FAILED_EXTRACTIONS,
@@ -66,7 +109,6 @@
       ]);
       
       state.queue = result[STORAGE_KEYS.QUEUE] || [];
-      state.capturedActs = result[STORAGE_KEYS.CAPTURED_ACTS] || [];
       state.currentVolume = result[STORAGE_KEYS.CURRENT_VOLUME] || null;
       state.failedExtractions = result[STORAGE_KEYS.FAILED_EXTRACTIONS] || [];
       state.queueStats = result[STORAGE_KEYS.QUEUE_STATS] || {
@@ -75,25 +117,175 @@
         retriedCount: 0
       };
       
+      // Requirements: 4.3 - Reconstruct queue state from extraction_receipts
+      // Get receipts from StorageManager (authoritative source)
+      const receipts = await StorageManager.getReceipts();
+      
+      // Requirements: 4.1, 4.4, 4.5, 4.6 - Use QueueReconstructor for state derivation
+      const reconstructed = QueueReconstructor.reconstructState(state.queue, receipts);
+      
+      // Requirements: 5.6 - Reset 'processing' items to 'pending' on reload
+      const resetResult = QueueReconstructor.resetProcessingStatus(state.queue);
+      state.queue = resetResult.items;
+      
+      // Log reconstruction results
+      if (reconstructed.discrepancies.length > 0) {
+        console.warn('Queue reconstruction found discrepancies:', reconstructed.discrepancies);
+        // Fix discrepancies by resetting items marked complete without receipts
+        for (const discrepancy of reconstructed.discrepancies) {
+          const item = state.queue.find(q => 
+            (q.actNumber === discrepancy.actNumber) || (q.act_number === discrepancy.actNumber)
+          );
+          if (item && item.status === 'completed') {
+            item.status = 'pending';
+            console.log(`Reset ${discrepancy.actNumber} from 'completed' to 'pending' (no receipt found)`);
+          }
+        }
+      }
+      
+      if (resetResult.resetCount > 0) {
+        console.log(`Reset ${resetResult.resetCount} items from 'processing' to 'pending'`);
+      }
+      
+      // Load captured acts from IndexedDB via StorageManager
+      // Requirements: 3.2 - Use IndexedDB as primary storage for acts
+      try {
+        const allActs = await StorageManager.getAllActs();
+        state.capturedActs = allActs || [];
+        console.log(`Loaded ${state.capturedActs.length} acts from IndexedDB`);
+      } catch (idbError) {
+        console.warn('Failed to load acts from IndexedDB, trying chrome.storage fallback:', idbError);
+        // Fallback to chrome.storage.local if IndexedDB fails
+        const chromeActsResult = await chrome.storage.local.get([STORAGE_KEYS.CAPTURED_ACTS]);
+        state.capturedActs = chromeActsResult[STORAGE_KEYS.CAPTURED_ACTS] || [];
+        console.log(`Loaded ${state.capturedActs.length} acts from chrome.storage fallback`);
+      }
+      
       console.log('Loaded from storage:', {
         queueLength: state.queue.length,
         capturedActsLength: state.capturedActs.length,
-        failedExtractionsLength: state.failedExtractions.length
+        failedExtractionsLength: state.failedExtractions.length,
+        receiptsCount: receipts.length,
+        reconstructedStats: reconstructed.stats
       });
+      
+      // Save any corrections made during reconstruction
+      if (reconstructed.discrepancies.length > 0 || resetResult.resetCount > 0) {
+        await saveQueueMetadata();
+      }
+      
     } catch (e) {
       console.error('Failed to load from storage:', e);
+      // Fallback to basic chrome.storage.local load
+      try {
+        const result = await chrome.storage.local.get([
+          STORAGE_KEYS.QUEUE,
+          STORAGE_KEYS.CAPTURED_ACTS,
+          STORAGE_KEYS.CURRENT_VOLUME,
+          STORAGE_KEYS.FAILED_EXTRACTIONS,
+          STORAGE_KEYS.QUEUE_STATS
+        ]);
+        
+        state.queue = result[STORAGE_KEYS.QUEUE] || [];
+        state.capturedActs = result[STORAGE_KEYS.CAPTURED_ACTS] || [];
+        state.currentVolume = result[STORAGE_KEYS.CURRENT_VOLUME] || null;
+        state.failedExtractions = result[STORAGE_KEYS.FAILED_EXTRACTIONS] || [];
+        state.queueStats = result[STORAGE_KEYS.QUEUE_STATS] || {
+          successCount: 0,
+          failedCount: 0,
+          retriedCount: 0
+        };
+        
+        console.log('Fallback load from chrome.storage.local:', {
+          queueLength: state.queue.length,
+          capturedActsLength: state.capturedActs.length
+        });
+      } catch (fallbackError) {
+        console.error('Fallback load also failed:', fallbackError);
+      }
     }
   }
 
-  async function saveToStorage() {
+  /**
+   * Save queue metadata to chrome.storage.local
+   * Queue state and configuration remain in chrome.storage per design
+   */
+  async function saveQueueMetadata() {
     try {
       await chrome.storage.local.set({
         [STORAGE_KEYS.QUEUE]: state.queue,
-        [STORAGE_KEYS.CAPTURED_ACTS]: state.capturedActs,
         [STORAGE_KEYS.CURRENT_VOLUME]: state.currentVolume,
         [STORAGE_KEYS.FAILED_EXTRACTIONS]: state.failedExtractions,
         [STORAGE_KEYS.QUEUE_STATS]: state.queueStats
       });
+    } catch (e) {
+      console.error('Failed to save queue metadata:', e);
+    }
+  }
+
+  /**
+   * Save act using StorageManager with atomic persistence
+   * Requirements: 1.1, 1.2, 6.1, 6.2 - Atomic per-act persistence with WAL
+   * 
+   * @param {Object} actData - The act data to save
+   * @returns {Promise<Object>} ExtractionReceipt proving durable persistence
+   * @throws {StorageError} if write fails
+   */
+  async function saveActWithReceipt(actData) {
+    const actNumber = actData.actNumber || actData.act_number;
+    
+    try {
+      // Requirements: 6.1 - Log intent BEFORE extraction/save
+      await StorageManager.logIntent(actNumber);
+      
+      // Prepare act for StorageManager (normalize field names)
+      const actForStorage = {
+        ...actData,
+        act_number: actNumber,
+        content_raw: actData.content || actData.content_raw
+      };
+      
+      // Requirements: 1.1, 1.2 - Atomic save with receipt generation
+      const receipt = await StorageManager.saveAct(actForStorage);
+      
+      // Requirements: 6.2 - Log completion AFTER successful save
+      await StorageManager.logComplete(actNumber, receipt.content_raw_sha256);
+      
+      console.log(`Act ${actNumber} saved with receipt:`, receipt.receipt_id);
+      
+      return receipt;
+    } catch (e) {
+      console.error(`Failed to save act ${actNumber}:`, e);
+      
+      // Log the error to audit log if available
+      try {
+        await StorageManager.logAuditEntry({
+          operation: 'save_act_failed',
+          act_id: actNumber,
+          error: e.message,
+          error_type: e.type || 'unknown'
+        });
+      } catch (auditError) {
+        console.error('Failed to log audit entry:', auditError);
+      }
+      
+      throw e;
+    }
+  }
+
+  /**
+   * Legacy saveToStorage function - now saves metadata only
+   * Acts are stored in IndexedDB via StorageManager, not chrome.storage.local
+   * Requirements: 3.2 - Use IndexedDB for acts, chrome.storage for metadata
+   */
+  async function saveToStorage() {
+    try {
+      // Save queue metadata to chrome.storage.local (small data only)
+      await saveQueueMetadata();
+      
+      // NOTE: Captured acts are stored in IndexedDB via StorageManager.saveAct()
+      // We no longer save state.capturedActs to chrome.storage.local to avoid quota issues
+      // The in-memory state.capturedActs is populated from IndexedDB on load
     } catch (e) {
       console.error('Failed to save to storage:', e);
     }
@@ -159,9 +351,24 @@
   /**
    * Check for interrupted processing and offer to resume
    * Requirements: 8.5 - Offer to resume processing
+   * Requirements: 6.3 - Check for incomplete extractions from WAL
    */
   async function checkForInterruptedProcessing() {
     const processingState = await loadProcessingState();
+    
+    // Requirements: 6.3 - Check for incomplete extractions from WAL
+    try {
+      const incompleteExtractions = await StorageManager.getIncompleteExtractions();
+      if (incompleteExtractions.length > 0) {
+        console.log(`Found ${incompleteExtractions.length} incomplete extraction(s) from WAL:`, 
+          incompleteExtractions.map(e => e.actId));
+        
+        // Show incomplete extractions prompt
+        showIncompleteExtractionsPrompt(incompleteExtractions);
+      }
+    } catch (e) {
+      console.error('Failed to check for incomplete extractions:', e);
+    }
     
     if (!processingState || !processingState.isProcessing) {
       return;
@@ -194,8 +401,23 @@
   }
   
   /**
+   * Show prompt for incomplete extractions detected from WAL
+   * Requirements: 6.3 - Offer to retry incomplete extractions
+   * 
+   * @param {Object[]} incompleteExtractions - Array of incomplete extraction info
+   */
+  function showIncompleteExtractionsPrompt(incompleteExtractions) {
+    // For now, log and alert - UI section can be added later
+    const actIds = incompleteExtractions.map(e => e.actId).join(', ');
+    console.warn(`Incomplete extractions detected: ${actIds}`);
+    
+    // Store for potential retry
+    state.incompleteExtractions = incompleteExtractions;
+  }
+  
+  /**
    * Show UI prompt to resume interrupted processing
-   * Requirements: 8.5 - Offer to resume processing
+   * Requirements: 5.2, 8.5 - Offer to resume processing with details
    * 
    * @param {Object} processingState - The interrupted processing state
    * @param {number} pendingCount - Number of pending items
@@ -208,11 +430,35 @@
       ? new Date(processingState.startedAt).toLocaleString()
       : 'Unknown';
     
-    $('resumeProcessingMessage').textContent = 
-      `Queue processing was interrupted. ${pendingCount} item(s) remaining.`;
-    $('resumeProcessingTimestamp').textContent = `Started: ${startedAt}`;
+    // Build detailed message
+    let message = `Queue processing was interrupted. ${pendingCount} item(s) remaining.`;
+    
+    // Add current act info if available
+    if (processingState.currentActId) {
+      message += ` Last processing: Act ${processingState.currentActId}.`;
+    }
+    
+    // Add stats if available
+    if (processingState.queueStats) {
+      const stats = processingState.queueStats;
+      if (stats.successCount > 0 || stats.failedCount > 0) {
+        message += ` Progress: ${stats.successCount} completed, ${stats.failedCount} failed.`;
+      }
+    }
+    
+    const messageEl = $('resumeProcessingMessage');
+    if (messageEl) {
+      messageEl.textContent = message;
+    }
+    
+    const timestampEl = $('resumeProcessingTimestamp');
+    if (timestampEl) {
+      timestampEl.textContent = `Started: ${startedAt}`;
+    }
     
     section.classList.remove('hidden');
+    
+    console.log('Resume prompt shown:', { processingState, pendingCount });
   }
   
   /**
@@ -227,11 +473,30 @@
   
   /**
    * Handle resume processing button click
-   * Requirements: 8.5 - Allow resuming interrupted queue processing
+   * Requirements: 5.2, 8.5 - Allow resuming interrupted queue processing
    */
   async function handleResumeProcessing() {
     hideResumePrompt();
     await clearProcessingState();
+    
+    // Clear localStorage backup as well
+    localStorage.removeItem('bdlaw_processing_state_backup');
+    
+    // Log the resume action
+    console.log('Resuming interrupted queue processing');
+    
+    // Log to audit trail if available
+    try {
+      await StorageManager.logAuditEntry({
+        operation: 'queue_processing_resumed',
+        timestamp: new Date().toISOString(),
+        context: {
+          pendingCount: state.queue.filter(q => q.status === 'pending').length
+        }
+      });
+    } catch (e) {
+      console.warn('Failed to log resume action to audit:', e);
+    }
     
     // Switch to queue tab and start processing
     switchTab('queue');
@@ -240,10 +505,178 @@
   
   /**
    * Handle dismiss resume prompt button click
+   * Requirements: 5.2 - Handle dismiss action for resume prompt
    */
   async function handleDismissResume() {
     hideResumePrompt();
     await clearProcessingState();
+    
+    // Clear localStorage backup as well
+    localStorage.removeItem('bdlaw_processing_state_backup');
+    
+    console.log('Resume prompt dismissed by user');
+  }
+
+  // ============================================
+  // SIDE PANEL LIFECYCLE HANDLERS
+  // Requirements: 5.1, 5.4, 5.5 - Handle side panel close/reopen
+  // ============================================
+  
+  /**
+   * Handle beforeunload event - flush pending writes and save state
+   * Requirements: 5.1, 5.4, 5.5 - Save state before side panel closes
+   * 
+   * @param {BeforeUnloadEvent} event - The beforeunload event
+   */
+  function handleBeforeUnload(event) {
+    // Requirements: 5.5 - Warn user if processing is active
+    if (state.isProcessing) {
+      // Set the returnValue to trigger the browser's confirmation dialog
+      const message = 'Queue processing is in progress. Closing may interrupt extraction. Are you sure?';
+      event.returnValue = message;
+      event.preventDefault();
+      
+      // Attempt to save state synchronously (best effort)
+      // Note: async operations may not complete during beforeunload
+      saveProcessingStateSync();
+      
+      return message;
+    }
+    
+    // Requirements: 5.4 - Flush pending writes before unload
+    // Save any pending state synchronously
+    saveProcessingStateSync();
+  }
+  
+  /**
+   * Synchronous version of saveProcessingState for beforeunload handler
+   * Uses synchronous localStorage as fallback since chrome.storage is async
+   * Requirements: 5.1, 5.4 - Save processing state before close
+   */
+  function saveProcessingStateSync() {
+    try {
+      // Get current processing state
+      const pendingItems = state.queue.filter(q => q.status === 'pending' || q.status === 'processing');
+      const currentProcessingItem = state.queue.find(q => q.status === 'processing');
+      
+      const processingState = {
+        isProcessing: state.isProcessing,
+        startedAt: new Date().toISOString(),
+        pendingItemIds: pendingItems.map(item => item.id || item.actNumber),
+        totalItems: pendingItems.length,
+        currentActId: currentProcessingItem?.actNumber || null,
+        queueStats: state.queueStats
+      };
+      
+      // Use localStorage as synchronous fallback
+      // This will be read and migrated to chrome.storage on next load
+      localStorage.setItem('bdlaw_processing_state_backup', JSON.stringify(processingState));
+      
+      console.log('Processing state saved synchronously:', processingState);
+    } catch (e) {
+      console.error('Failed to save processing state synchronously:', e);
+    }
+  }
+  
+  /**
+   * Handle visibilitychange event - save state when tab becomes hidden
+   * Requirements: 5.1 - Save state when side panel loses focus
+   */
+  async function handleVisibilityChange() {
+    if (document.visibilityState === 'hidden' && state.isProcessing) {
+      // Save processing state when panel becomes hidden
+      const pendingItems = state.queue.filter(q => q.status === 'pending' || q.status === 'processing');
+      await saveProcessingState(true, pendingItems);
+      console.log('Processing state saved on visibility change');
+    }
+  }
+  
+  /**
+   * Handle pagehide event - final attempt to save state
+   * Requirements: 5.1, 5.4 - Save state before page unloads
+   * 
+   * @param {PageTransitionEvent} event - The pagehide event
+   */
+  function handlePageHide(event) {
+    if (state.isProcessing) {
+      // Save state synchronously as this is our last chance
+      saveProcessingStateSync();
+      console.log('Processing state saved on pagehide');
+    }
+  }
+  
+  /**
+   * Check for and migrate processing state from localStorage backup
+   * Called during initialization to recover state saved during beforeunload
+   * Requirements: 5.2 - Detect interrupted processing on load
+   * 
+   * @returns {Object|null} Recovered processing state or null
+   */
+  async function recoverProcessingStateFromBackup() {
+    try {
+      const backupState = localStorage.getItem('bdlaw_processing_state_backup');
+      if (!backupState) {
+        return null;
+      }
+      
+      const parsedState = JSON.parse(backupState);
+      
+      // Migrate to chrome.storage.local
+      if (parsedState.isProcessing) {
+        await chrome.storage.local.set({
+          [STORAGE_KEYS.PROCESSING_STATE]: parsedState
+        });
+        console.log('Recovered processing state from localStorage backup:', parsedState);
+      }
+      
+      // Clear the backup
+      localStorage.removeItem('bdlaw_processing_state_backup');
+      
+      return parsedState;
+    } catch (e) {
+      console.error('Failed to recover processing state from backup:', e);
+      // Clear corrupted backup
+      localStorage.removeItem('bdlaw_processing_state_backup');
+      return null;
+    }
+  }
+  
+  /**
+   * Initialize lifecycle event handlers
+   * Requirements: 5.1, 5.4, 5.5 - Set up lifecycle event listeners
+   */
+  function initLifecycleHandlers() {
+    // Requirements: 5.5 - Warn user if processing is active on close
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    
+    // Requirements: 5.1 - Save state when visibility changes
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    // Requirements: 5.4 - Final save attempt on pagehide
+    window.addEventListener('pagehide', handlePageHide);
+    
+    console.log('Lifecycle handlers initialized');
+  }
+  
+  /**
+   * Enhanced check for interrupted processing with backup recovery
+   * Requirements: 5.2 - Detect interrupted processing and offer to resume
+   */
+  async function checkForInterruptedProcessingEnhanced() {
+    // First, try to recover any state from localStorage backup
+    const backupState = await recoverProcessingStateFromBackup();
+    
+    // Then run the standard check
+    await checkForInterruptedProcessing();
+    
+    // If we recovered state from backup and it shows processing was active,
+    // ensure the resume prompt is shown
+    if (backupState?.isProcessing) {
+      const pendingItems = state.queue.filter(q => q.status === 'pending' || q.status === 'processing');
+      if (pendingItems.length > 0) {
+        showResumePrompt(backupState, pendingItems.length);
+      }
+    }
   }
 
   // ============================================
@@ -984,6 +1417,434 @@
     }
   }
 
+  // ============================================
+  // STORAGE STATUS UI
+  // Requirements: 2.4, 10.3, 10.4, 8.1, 8.6, 11.4, 11.6
+  // ============================================
+  
+  /**
+   * Update storage status indicator in UI
+   * Requirements: 2.4, 10.3 - Show current backend, usage percentage, warning/critical state
+   */
+  async function updateStorageStatusUI() {
+    try {
+      const status = await StorageManager.getStorageStatus();
+      
+      // Update backend label
+      const backendLabel = $('storageBackendLabel');
+      if (backendLabel) {
+        const backendNames = {
+          'indexeddb': 'IndexedDB',
+          'chrome_storage': 'Chrome Storage',
+          'memory': 'Memory (Volatile)'
+        };
+        const backendName = backendNames[status.backend] || status.backend;
+        backendLabel.textContent = `Storage: ${backendName}`;
+        backendLabel.className = `storage-backend-label ${status.backend}`;
+      }
+      
+      // Update usage percentage
+      const usagePercent = $('storageUsagePercent');
+      if (usagePercent) {
+        const percent = Math.round(status.usagePercent);
+        usagePercent.textContent = `${percent}%`;
+        usagePercent.classList.remove('warning', 'critical');
+        if (status.isCritical) {
+          usagePercent.classList.add('critical');
+        } else if (status.isWarning) {
+          usagePercent.classList.add('warning');
+        }
+      }
+      
+      // Update progress bar
+      const progressFill = $('storageProgressFill');
+      if (progressFill) {
+        progressFill.style.width = `${Math.min(status.usagePercent, 100)}%`;
+        progressFill.classList.remove('warning', 'critical');
+        if (status.isCritical) {
+          progressFill.classList.add('critical');
+        } else if (status.isWarning) {
+          progressFill.classList.add('warning');
+        }
+      }
+      
+      // Update warning message
+      const warningMessage = $('storageWarningMessage');
+      const warningText = $('storageWarningText');
+      if (warningMessage && warningText) {
+        if (status.isCritical) {
+          warningText.textContent = 'Storage critical! Export data immediately to avoid data loss.';
+          warningMessage.classList.remove('hidden');
+          warningMessage.classList.add('critical');
+        } else if (status.isWarning) {
+          warningText.textContent = 'Storage usage high. Consider exporting data soon.';
+          warningMessage.classList.remove('hidden', 'critical');
+        } else {
+          warningMessage.classList.add('hidden');
+        }
+      }
+      
+      // Update state for other components
+      state.storageBackend = status.backend;
+      state.storageDegraded = status.degradedMode;
+      
+      // Update degraded mode warning
+      updateDegradedModeWarning(status);
+      
+    } catch (e) {
+      console.error('Failed to update storage status UI:', e);
+    }
+  }
+  
+  /**
+   * Update degraded mode warning display
+   * Requirements: 10.4 - Show warning when not using IndexedDB
+   * 
+   * @param {Object} status - Storage status object
+   */
+  function updateDegradedModeWarning(status) {
+    const warningSection = $('degradedModeWarning');
+    const messageEl = $('degradedModeMessage');
+    
+    if (!warningSection) return;
+    
+    if (status.degradedMode) {
+      warningSection.classList.remove('hidden');
+      
+      if (status.backend === 'memory') {
+        warningSection.classList.add('memory-mode');
+        if (messageEl) {
+          messageEl.textContent = 'Using memory-only storage. All data will be lost when browser closes!';
+        }
+      } else if (status.backend === 'chrome_storage') {
+        warningSection.classList.remove('memory-mode');
+        if (messageEl) {
+          messageEl.textContent = 'IndexedDB unavailable. Using Chrome Storage with limited capacity (10MB).';
+        }
+      }
+    } else {
+      warningSection.classList.add('hidden');
+    }
+  }
+  
+  /**
+   * Update export checkpoint prompt UI
+   * Requirements: 8.1, 8.6 - Show acts_since_export count and prompt when threshold reached
+   */
+  async function updateExportCheckpointUI() {
+    try {
+      const checkpointState = await ExportCheckpointManager.shouldPromptExport();
+      
+      const promptSection = $('exportCheckpointPrompt');
+      const countEl = $('actsSinceExportCount');
+      
+      if (!promptSection) return;
+      
+      // Update the count display
+      if (countEl) {
+        countEl.textContent = checkpointState.acts_since_export;
+      }
+      
+      // Show/hide prompt based on threshold
+      if (checkpointState.should_prompt && !state.exportPromptDisplayed) {
+        promptSection.classList.remove('hidden');
+        state.exportPromptDisplayed = true;
+      } else if (!checkpointState.should_prompt) {
+        promptSection.classList.add('hidden');
+        state.exportPromptDisplayed = false;
+      }
+      
+    } catch (e) {
+      console.error('Failed to update export checkpoint UI:', e);
+    }
+  }
+  
+  /**
+   * Handle export now button click from checkpoint prompt
+   * Requirements: 8.1 - Provide "Download All Now" button
+   */
+  async function handleExportFromCheckpoint() {
+    // Hide the prompt
+    const promptSection = $('exportCheckpointPrompt');
+    if (promptSection) {
+      promptSection.classList.add('hidden');
+    }
+    
+    // Record the export
+    await ExportCheckpointManager.recordExport();
+    state.exportPromptDisplayed = false;
+    
+    // Switch to export tab and trigger export
+    switchTab('export');
+    exportAllAsSeparateFiles();
+  }
+  
+  /**
+   * Handle dismiss button click from checkpoint prompt
+   * Requirements: 8.3 - Allow dismiss but re-prompt after another N acts
+   */
+  async function handleDismissCheckpoint() {
+    const promptSection = $('exportCheckpointPrompt');
+    if (promptSection) {
+      promptSection.classList.add('hidden');
+    }
+    
+    // Dismiss the prompt (resets counter for re-prompt)
+    await ExportCheckpointManager.dismissPrompt();
+    state.exportPromptDisplayed = false;
+  }
+  
+  /**
+   * Update integrity status indicator
+   * Requirements: 11.4, 11.6 - Show verified/unverified/corrupted status
+   */
+  async function updateIntegrityStatusUI() {
+    const section = $('integrityStatusSection');
+    const iconEl = $('integrityStatusIcon');
+    const labelEl = $('integrityStatusLabel');
+    const detailsEl = $('integrityDetails');
+    const messageEl = $('integrityMessage');
+    const reExtractBtn = $('reExtractCorruptedBtn');
+    
+    if (!section) return;
+    
+    // Only show if we have captured acts
+    if (state.capturedActs.length === 0) {
+      section.classList.add('hidden');
+      return;
+    }
+    
+    section.classList.remove('hidden');
+    
+    // Count integrity statuses
+    let verifiedCount = 0;
+    let unverifiedCount = 0;
+    let corruptedCount = 0;
+    const corruptedActs = [];
+    
+    for (const act of state.capturedActs) {
+      const persistence = act._persistence;
+      if (persistence) {
+        if (persistence.potentially_corrupted) {
+          corruptedCount++;
+          corruptedActs.push(act.actNumber || act.act_number);
+        } else if (persistence.integrity_verified) {
+          verifiedCount++;
+        } else {
+          unverifiedCount++;
+        }
+      } else {
+        unverifiedCount++;
+      }
+    }
+    
+    // Update UI based on status
+    section.classList.remove('verified', 'unverified', 'corrupted');
+    
+    if (corruptedCount > 0) {
+      section.classList.add('corrupted');
+      if (iconEl) iconEl.textContent = '❌';
+      if (labelEl) labelEl.textContent = `Data Integrity: ${corruptedCount} Corrupted`;
+      
+      if (detailsEl) detailsEl.classList.remove('hidden');
+      if (messageEl) {
+        messageEl.textContent = `${corruptedCount} act(s) have integrity issues: ${corruptedActs.slice(0, 5).join(', ')}${corruptedActs.length > 5 ? '...' : ''}`;
+      }
+      if (reExtractBtn) {
+        reExtractBtn.classList.remove('hidden');
+        // Store corrupted acts for re-extraction
+        state.corruptedActs = corruptedActs;
+      }
+    } else if (unverifiedCount > 0) {
+      section.classList.add('unverified');
+      if (iconEl) iconEl.textContent = '⚠️';
+      if (labelEl) labelEl.textContent = `Data Integrity: ${unverifiedCount} Unverified`;
+      
+      if (detailsEl) detailsEl.classList.remove('hidden');
+      if (messageEl) {
+        messageEl.textContent = `${unverifiedCount} act(s) have not been verified. ${verifiedCount} verified.`;
+      }
+      if (reExtractBtn) reExtractBtn.classList.add('hidden');
+    } else {
+      section.classList.add('verified');
+      if (iconEl) iconEl.textContent = '✅';
+      if (labelEl) labelEl.textContent = `Data Integrity: All Verified (${verifiedCount})`;
+      
+      if (detailsEl) detailsEl.classList.add('hidden');
+      if (reExtractBtn) reExtractBtn.classList.add('hidden');
+    }
+  }
+  
+  /**
+   * Handle re-extract corrupted acts button click
+   * Requirements: 11.4 - Provide option to re-extract corrupted acts
+   */
+  async function handleReExtractCorrupted() {
+    if (!state.corruptedActs || state.corruptedActs.length === 0) {
+      alert('No corrupted acts to re-extract.');
+      return;
+    }
+    
+    const count = state.corruptedActs.length;
+    if (!confirm(`Re-extract ${count} corrupted act(s)? This will add them to the queue.`)) {
+      return;
+    }
+    
+    // Find the corrupted acts and add them to queue for re-extraction
+    let added = 0;
+    for (const actNumber of state.corruptedActs) {
+      const act = state.capturedActs.find(a => 
+        (a.actNumber === actNumber) || (a.act_number === actNumber)
+      );
+      
+      if (act && act.url) {
+        // Check if already in queue
+        if (!isDuplicateInQueue(actNumber)) {
+          state.queue.push({
+            id: Date.now() + '_' + actNumber,
+            actNumber: actNumber,
+            title: act.title || `Act ${actNumber}`,
+            url: act.url,
+            volumeNumber: act.volumeNumber || act.volume_number,
+            status: 'pending',
+            addedAt: new Date().toISOString(),
+            isReExtraction: true
+          });
+          added++;
+        }
+      }
+    }
+    
+    if (added > 0) {
+      await saveToStorage();
+      updateQueueBadge();
+      renderQueue();
+      alert(`Added ${added} act(s) to queue for re-extraction.`);
+      switchTab('queue');
+    } else {
+      alert('No acts could be added to queue. They may already be queued or missing URL information.');
+    }
+  }
+  
+  /**
+   * Handle verify all acts button click
+   * Requirements: 11.1 - Bulk verify content hash for all acts
+   */
+  async function handleVerifyAllActs() {
+    if (state.capturedActs.length === 0) {
+      alert('No acts to verify.');
+      return;
+    }
+    
+    const verifyBtn = $('verifyAllBtn');
+    const progressSection = $('verificationProgress');
+    const progressFill = $('verificationProgressFill');
+    const progressText = $('verificationProgressText');
+    
+    // Disable button and show progress
+    if (verifyBtn) verifyBtn.disabled = true;
+    if (progressSection) progressSection.classList.remove('hidden');
+    
+    let verified = 0;
+    let corrupted = 0;
+    let failed = 0;
+    const total = state.capturedActs.length;
+    
+    for (let i = 0; i < state.capturedActs.length; i++) {
+      const act = state.capturedActs[i];
+      const actId = act.actNumber || act.act_number;
+      
+      // Update progress
+      const percent = Math.round(((i + 1) / total) * 100);
+      if (progressFill) progressFill.style.width = `${percent}%`;
+      if (progressText) progressText.textContent = `Verifying ${i + 1}/${total}: ${actId}...`;
+      
+      try {
+        // Get content to verify
+        const content = act.content_raw || act.content;
+        const storedHash = act.content_raw_sha256;
+        
+        if (!content) {
+          // No content to verify
+          act._persistence = act._persistence || {};
+          act._persistence.integrity_verified = false;
+          act._persistence.integrity_error = 'No content available';
+          failed++;
+          continue;
+        }
+        
+        if (!storedHash) {
+          // No hash stored - compute and store it
+          const computedHash = await StorageManager.computeSHA256(content);
+          act.content_raw_sha256 = computedHash;
+          act._persistence = act._persistence || {};
+          act._persistence.integrity_verified = true;
+          act._persistence.potentially_corrupted = false;
+          act._persistence.last_verified_at = new Date().toISOString();
+          verified++;
+          continue;
+        }
+        
+        // Verify hash
+        const computedHash = await StorageManager.computeSHA256(content);
+        act._persistence = act._persistence || {};
+        act._persistence.last_verified_at = new Date().toISOString();
+        
+        if (computedHash === storedHash) {
+          act._persistence.integrity_verified = true;
+          act._persistence.potentially_corrupted = false;
+          verified++;
+        } else {
+          act._persistence.integrity_verified = false;
+          act._persistence.potentially_corrupted = true;
+          act._persistence.integrity_error = 'Hash mismatch';
+          corrupted++;
+          console.warn(`Hash mismatch for act ${actId}:`, {
+            stored: storedHash,
+            computed: computedHash
+          });
+        }
+      } catch (e) {
+        console.error(`Failed to verify act ${actId}:`, e);
+        act._persistence = act._persistence || {};
+        act._persistence.integrity_verified = false;
+        act._persistence.integrity_error = e.message;
+        failed++;
+      }
+      
+      // Small delay to prevent UI freeze
+      if (i % 10 === 0) {
+        await new Promise(resolve => setTimeout(resolve, 10));
+      }
+    }
+    
+    // Save updated state
+    await saveToStorage();
+    
+    // Hide progress and re-enable button
+    if (progressSection) progressSection.classList.add('hidden');
+    if (verifyBtn) verifyBtn.disabled = false;
+    
+    // Update integrity status UI
+    await updateIntegrityStatusUI();
+    
+    // Show results
+    let message = `Verification complete:\n✅ ${verified} verified`;
+    if (corrupted > 0) message += `\n❌ ${corrupted} corrupted`;
+    if (failed > 0) message += `\n⚠️ ${failed} failed`;
+    alert(message);
+  }
+  
+  /**
+   * Update all storage-related UI components
+   * Called after storage operations and during initialization
+   */
+  async function updateAllStorageUI() {
+    await updateStorageStatusUI();
+    await updateExportCheckpointUI();
+    await updateIntegrityStatusUI();
+  }
+
   function renderQueue() {
     const listEl = $('queueList');
     const pending = state.queue.filter(q => q.status === 'pending').length;
@@ -1262,10 +2123,17 @@
 
   // ============================================
   // QUEUE PROCESSING
-  // Requirements: 1.2, 1.3, 2.1-2.5, 3.1-3.6, 5.1
+  // Requirements: 1.1, 1.2, 1.3, 2.1-2.5, 2.6, 3.1-3.6, 5.1
+  // Durable Persistence Hardening: Atomic saves with StorageManager
   // ============================================
   async function processQueue() {
     if (state.isProcessing) return;
+    
+    // Requirements: 2.3, 2.6 - Check storage quota before processing
+    if (state.processingPaused) {
+      alert('Processing is paused due to storage quota. Please export data to free up space.');
+      return;
+    }
     
     const pendingItems = state.queue.filter(q => q.status === 'pending');
     if (pendingItems.length === 0) {
@@ -1293,11 +2161,38 @@
     const total = pendingItems.length;
 
     for (const item of pendingItems) {
+      // Requirements: 2.3, 2.6 - Check storage quota before each extraction
+      try {
+        const storageStatus = await StorageManager.getStorageStatus();
+        if (storageStatus.isCritical) {
+          console.warn('Storage quota critical, pausing processing');
+          state.processingPaused = true;
+          state.exportPromptDisplayed = true;
+          alert('Storage quota exceeded (95%). Processing paused.\nPlease export your data to free up space.');
+          break;
+        }
+        if (storageStatus.isWarning && !state.exportPromptDisplayed) {
+          console.warn('Storage quota warning at', storageStatus.usagePercent.toFixed(1) + '%');
+          // Show warning but continue processing
+        }
+      } catch (quotaError) {
+        console.error('Failed to check storage quota:', quotaError);
+        // Continue processing if quota check fails
+      }
+      
       try {
         // Update status
         item.status = 'processing';
         renderQueue();
         updateProgress(processed, total, `Processing: ${item.title || item.actNumber}`);
+
+        // Requirements: 6.1 - Log intent BEFORE extraction
+        try {
+          await StorageManager.logIntent(item.actNumber);
+        } catch (walError) {
+          console.error('Failed to log extraction intent:', walError);
+          // Continue with extraction even if WAL fails
+        }
 
         // Open the act page in current tab
         const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -1310,7 +2205,7 @@
         // Chrome forbids script injection into error pages
         const tabInfo = await chrome.tabs.get(tab.id);
         if (isErrorPage(tabInfo)) {
-          console.error(`Error page detected for ${item.actNumber}: ${tabInfo.url}`);
+          console.warn(`Act ${item.actNumber} returned error page (URL may not exist): ${tabInfo.url}`);
           item.status = 'error';
           item.error = FAILURE_REASONS.NETWORK_ERROR;
           state.failedExtractions = BDLawQueue.addFailedExtraction(
@@ -1383,9 +2278,43 @@
             capturedAt: new Date().toISOString()
           };
 
-          state.capturedActs.push(actData);
-          item.status = 'completed';
-          state.queueStats.successCount++;
+          // Requirements: 1.1, 1.2 - Atomic save with receipt BEFORE marking complete
+          try {
+            const receipt = await saveActWithReceipt(actData);
+            console.log(`Act ${item.actNumber} saved with receipt:`, receipt.receipt_id);
+            
+            // Only mark as completed AFTER successful atomic save
+            state.capturedActs.push(actData);
+            item.status = 'completed';
+            state.queueStats.successCount++;
+            
+            // Requirements: 8.1, 8.2 - Record extraction for export checkpoint
+            try {
+              const checkpointResult = await ExportCheckpointManager.recordExtraction();
+              if (checkpointResult.should_prompt) {
+                // Update UI to show export prompt
+                await updateExportCheckpointUI();
+              }
+            } catch (checkpointError) {
+              console.warn('Failed to record extraction for checkpoint:', checkpointError);
+            }
+          } catch (saveError) {
+            // Requirements: 1.3, 2.6 - Handle save failure
+            console.error(`Failed to save act ${item.actNumber}:`, saveError);
+            
+            // Check if it's a quota error
+            if (saveError.type === StorageErrorType.QUOTA_EXCEEDED) {
+              state.processingPaused = true;
+              state.exportPromptDisplayed = true;
+              alert('Storage quota exceeded. Processing paused.\nPlease export your data to free up space.');
+              break;
+            }
+            
+            // Mark as error but don't add to failed extractions (data was extracted, just not saved)
+            item.status = 'error';
+            item.error = `Save failed: ${saveError.message}`;
+            state.queueStats.failedCount++;
+          }
         } else {
           // Extraction validation failed - add to failed extractions
           console.error(`Extraction validation failed for ${item.actNumber}:`, validation.reason);
@@ -1423,8 +2352,10 @@
     state.queue = state.queue.filter(q => q.status !== 'completed');
     await saveToStorage();
 
-    // Requirements: 5.1 - Process retry queue after main queue
-    await processRetryQueue();
+    // Requirements: 5.1 - Process retry queue after main queue (unless paused)
+    if (!state.processingPaused) {
+      await processRetryQueue();
+    }
 
     state.isProcessing = false;
     $('processingStatus').classList.add('hidden');
@@ -1454,6 +2385,10 @@
       if (permanentlyFailed > 0) {
         message += `\n\n⚠️ ${permanentlyFailed} act(s) permanently failed after max retries.`;
       }
+    }
+    
+    if (state.processingPaused) {
+      message += `\n\n⚠️ Processing was paused due to storage quota.`;
     }
     
     alert(message);
@@ -1488,6 +2423,12 @@
     let retryIndex = 0;
     
     for (const failedEntry of retryableItems) {
+      // Requirements: 2.3, 2.6 - Check storage quota before each retry
+      if (state.processingPaused) {
+        console.warn('Processing paused due to storage quota, stopping retry queue');
+        break;
+      }
+      
       const attemptNumber = failedEntry.retry_count + 1;
       
       // Requirements: 5.3 - Apply exponential backoff delay
@@ -1500,6 +2441,13 @@
       const selectorStrategy = BDLawQueue.getSelectorStrategyLabel(useBroaderSelectors);
       
       try {
+        // Requirements: 6.1 - Log intent BEFORE extraction
+        try {
+          await StorageManager.logIntent(failedEntry.act_number);
+        } catch (walError) {
+          console.error('Failed to log extraction intent for retry:', walError);
+        }
+        
         // Open the act page
         const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
         await chrome.tabs.update(tab.id, { url: failedEntry.url });
@@ -1510,7 +2458,7 @@
         // FIX: Detect error pages BEFORE attempting script injection
         const tabInfo = await chrome.tabs.get(tab.id);
         if (isErrorPage(tabInfo)) {
-          console.error(`Error page detected for retry of ${failedEntry.act_number}: ${tabInfo.url}`);
+          console.warn(`Retry for act ${failedEntry.act_number} returned error page (URL may not exist): ${tabInfo.url}`);
           // Do NOT retry error pages - mark as network_error and move on
           state.failedExtractions = BDLawQueue.addFailedExtraction(
             state.failedExtractions,
@@ -1577,7 +2525,7 @@
         const validation = BDLawQueue.validateExtraction(response, config.minimum_content_threshold, domReadiness);
         
         if (validation.valid) {
-          // Success! Save the act
+          // Success! Save the act with atomic persistence
           const actData = {
             id: failedEntry.act_id,
             actNumber: failedEntry.act_number,
@@ -1597,13 +2545,45 @@
             retry_attempt: attemptNumber
           };
           
-          state.capturedActs.push(actData);
-          
-          // Remove from failed extractions
-          state.failedExtractions = state.failedExtractions.filter(f => f.act_id !== failedEntry.act_id);
-          
-          state.queueStats.successCount++;
-          state.queueStats.retriedCount++;
+          // Requirements: 1.1, 1.2 - Atomic save with receipt BEFORE marking complete
+          try {
+            const receipt = await saveActWithReceipt(actData);
+            console.log(`Retry act ${failedEntry.act_number} saved with receipt:`, receipt.receipt_id);
+            
+            // Only add to captured acts AFTER successful atomic save
+            state.capturedActs.push(actData);
+            
+            // Remove from failed extractions
+            state.failedExtractions = state.failedExtractions.filter(f => f.act_id !== failedEntry.act_id);
+            
+            state.queueStats.successCount++;
+            state.queueStats.retriedCount++;
+            
+            // Requirements: 8.1, 8.2 - Record extraction for export checkpoint
+            try {
+              const checkpointResult = await ExportCheckpointManager.recordExtraction();
+              if (checkpointResult.should_prompt) {
+                // Update UI to show export prompt
+                await updateExportCheckpointUI();
+              }
+            } catch (checkpointError) {
+              console.warn('Failed to record extraction for checkpoint:', checkpointError);
+            }
+          } catch (saveError) {
+            // Requirements: 1.3, 2.6 - Handle save failure
+            console.error(`Failed to save retry act ${failedEntry.act_number}:`, saveError);
+            
+            // Check if it's a quota error
+            if (saveError.type === StorageErrorType.QUOTA_EXCEEDED) {
+              state.processingPaused = true;
+              state.exportPromptDisplayed = true;
+              alert('Storage quota exceeded. Processing paused.\nPlease export your data to free up space.');
+              break;
+            }
+            
+            // Mark as failed but don't increment retry count (data was extracted, just not saved)
+            state.queueStats.retriedCount++;
+          }
         } else {
           // Still failing - update entry with selector strategy
           // Requirements: 5.7 - Include selector strategy in attempt history
@@ -3453,6 +4433,15 @@
     // Hide progress indicator
     $('exportProgress').classList.add('hidden');
     
+    // Requirements: 8.1, 8.2 - Record export for checkpoint
+    try {
+      await ExportCheckpointManager.recordExport();
+      await updateExportCheckpointUI();
+      await updateStorageStatusUI();
+    } catch (checkpointError) {
+      console.warn('Failed to record export for checkpoint:', checkpointError);
+    }
+    
     // Build completion message
     let completeMsg = `Export complete!\n${exported} of ${total} acts exported as separate files.`;
     if (failedCount > 0) {
@@ -3775,6 +4764,59 @@
     }
   }
 
+  /**
+   * Export audit log as JSON file
+   * Requirements: 9.4 - Allow exporting the audit log as JSON
+   */
+  async function handleExportAuditLog() {
+    const prettyPrint = $('prettyPrint')?.checked ?? true;
+    
+    try {
+      // Get audit log from StorageManager
+      let auditLog = [];
+      
+      if (typeof StorageManager !== 'undefined' && StorageManager.getAuditLog) {
+        auditLog = await StorageManager.getAuditLog();
+      } else {
+        // Fallback: try to get from chrome.storage
+        const stored = await chrome.storage.local.get(['bdlaw_audit_log']);
+        auditLog = stored.bdlaw_audit_log || [];
+      }
+      
+      if (auditLog.length === 0) {
+        alert('No audit log entries found.');
+        return;
+      }
+      
+      // Create export object with metadata
+      const exportData = {
+        export_type: 'audit_log',
+        exported_at: new Date().toISOString(),
+        entry_count: auditLog.length,
+        schema_version: '3.1',
+        entries: auditLog
+      };
+      
+      const jsonContent = prettyPrint 
+        ? JSON.stringify(exportData, null, 2) 
+        : JSON.stringify(exportData);
+      
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+      const filename = `bdlaw_audit_log_${timestamp}.json`;
+      
+      await chrome.runtime.sendMessage({
+        type: 'downloadJSON',
+        content: jsonContent,
+        filename: filename
+      });
+      
+      alert(`Audit log exported!\n${auditLog.length} entries saved to ${filename}`);
+    } catch (e) {
+      console.error('Audit log export failed:', e);
+      alert('Export failed: ' + e.message);
+    }
+  }
+
   // Keep the old exportAll function for backward compatibility but mark as deprecated
   // This is now replaced by exportAllAsSeparateFiles as the default behavior
   async function exportAll() {
@@ -3889,18 +4931,29 @@
   /**
    * Initialize queue settings UI with current values
    */
-  function initQueueSettings() {
+  async function initQueueSettings() {
     const config = BDLawQueue.getQueueConfig();
     
     const delayInput = $('extractionDelayInput');
     const thresholdInput = $('minContentThresholdInput');
     const retryInput = $('maxRetryAttemptsInput');
     const retryDelayInput = $('retryBaseDelayInput');
+    const checkpointThresholdInput = $('exportCheckpointThresholdInput');
     
     if (delayInput) delayInput.value = config.extraction_delay_ms / 1000;
     if (thresholdInput) thresholdInput.value = config.minimum_content_threshold;
     if (retryInput) retryInput.value = config.max_retry_attempts;
     if (retryDelayInput) retryDelayInput.value = config.retry_base_delay_ms / 1000;
+    
+    // Load export checkpoint threshold (Requirements: 8.7)
+    if (checkpointThresholdInput) {
+      try {
+        const stored = await chrome.storage.local.get(['bdlaw_export_checkpoint_threshold']);
+        checkpointThresholdInput.value = stored.bdlaw_export_checkpoint_threshold || 50;
+      } catch (e) {
+        checkpointThresholdInput.value = 50;
+      }
+    }
   }
   
   /**
@@ -3925,6 +4978,7 @@
     const thresholdInput = $('minContentThresholdInput');
     const retryInput = $('maxRetryAttemptsInput');
     const retryDelayInput = $('retryBaseDelayInput');
+    const checkpointThresholdInput = $('exportCheckpointThresholdInput');
     
     const config = {
       extraction_delay_ms: (parseFloat(delayInput?.value) || 3) * 1000,
@@ -3934,6 +4988,16 @@
     };
     
     BDLawQueue.saveQueueConfig(config);
+    
+    // Save export checkpoint threshold (Requirements: 8.7)
+    const checkpointThreshold = parseInt(checkpointThresholdInput?.value) || 50;
+    // Clamp to valid range (10-200)
+    const clampedThreshold = Math.max(10, Math.min(200, checkpointThreshold));
+    if (typeof ExportCheckpointManager !== 'undefined' && ExportCheckpointManager.setThreshold) {
+      ExportCheckpointManager.setThreshold(clampedThreshold);
+    }
+    // Also save to chrome.storage for persistence
+    chrome.storage.local.set({ bdlaw_export_checkpoint_threshold: clampedThreshold });
     
     // Re-read to get clamped values
     initQueueSettings();
@@ -4086,6 +5150,11 @@
     $('exportManifestBtn').addEventListener('click', exportCorpusManifest);
     // Requirements: 9.1, 9.2, 9.5 - Add "Export Research Documents" button
     $('exportResearchDocsBtn').addEventListener('click', exportResearchDocuments);
+    // Requirements: 9.4 - Add "Export Audit Log" button
+    const exportAuditLogBtn = $('exportAuditLogBtn');
+    if (exportAuditLogBtn) {
+      exportAuditLogBtn.addEventListener('click', handleExportAuditLog);
+    }
     // Clear all data button
     $('clearAllDataBtn').addEventListener('click', clearAllData);
 
@@ -4115,6 +5184,32 @@
       applyTextCleaningCheckbox.addEventListener('change', updateCleaningSummary);
     }
 
+    // Export checkpoint prompt buttons
+    // Requirements: 8.1, 8.6 - Export checkpoint prompt UI
+    const exportNowBtn = $('exportNowBtn');
+    if (exportNowBtn) {
+      exportNowBtn.addEventListener('click', handleExportFromCheckpoint);
+    }
+    
+    const dismissCheckpointBtn = $('dismissCheckpointBtn');
+    if (dismissCheckpointBtn) {
+      dismissCheckpointBtn.addEventListener('click', handleDismissCheckpoint);
+    }
+    
+    // Integrity re-extract button
+    // Requirements: 11.4 - Re-extract corrupted acts
+    const reExtractCorruptedBtn = $('reExtractCorruptedBtn');
+    if (reExtractCorruptedBtn) {
+      reExtractCorruptedBtn.addEventListener('click', handleReExtractCorrupted);
+    }
+    
+    // Verify All button
+    // Requirements: 11.1 - Bulk verify all acts
+    const verifyAllBtn = $('verifyAllBtn');
+    if (verifyAllBtn) {
+      verifyAllBtn.addEventListener('click', handleVerifyAllActs);
+    }
+
     // Listen for tab changes
     chrome.tabs.onActivated.addListener(checkCurrentPage);
     chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
@@ -4130,12 +5225,24 @@
   async function init() {
     console.log('BDLawCorpus Side Panel initializing...');
     
+    // Requirements: 3.2, 10.7 - Initialize StorageManager first (handles backend selection)
+    try {
+      const storageInit = await initializeStorage();
+      console.log('Storage initialized:', storageInit);
+    } catch (e) {
+      console.error('Storage initialization failed, using fallback:', e);
+      // Continue with degraded mode - loadFromStorage will handle fallback
+    }
+    
     await loadFromStorage();
     initTabs();
     bindEvents();
     initQualityDetailsPanel();
     initCleaningPreview();
     initQueueSettings();
+    
+    // Requirements: 5.1, 5.4, 5.5 - Initialize lifecycle handlers for side panel close/reopen
+    initLifecycleHandlers();
     
     await checkCurrentPage();
     showCurrentVolume();
@@ -4144,8 +5251,11 @@
     renderFailedExtractions();
     updateExportStats();
     
-    // Requirements: 8.5 - Check for interrupted processing and offer to resume
-    await checkForInterruptedProcessing();
+    // Requirements: 2.4, 10.3, 10.4, 8.1, 8.6, 11.4, 11.6 - Update storage-related UI
+    await updateAllStorageUI();
+    
+    // Requirements: 5.2, 8.5, 6.3 - Check for interrupted processing with backup recovery
+    await checkForInterruptedProcessingEnhanced();
     
     console.log('BDLawCorpus Side Panel ready');
   }

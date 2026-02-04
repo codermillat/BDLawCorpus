@@ -2104,3 +2104,359 @@ body {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.5; }
 }
+
+
+/* ============================================
+   STORAGE STATUS INDICATOR
+   Requirements: 2.4, 10.3 - Show storage backend, usage, and warning/critical state
+   ============================================ */
+
+.storage-status-section {
+  padding: 8px 16px;
+  background: #f8f9fa;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.storage-status-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.storage-icon {
+  font-size: 14px;
+}
+
+.storage-backend-label {
+  font-size: 11px;
+  font-weight: 500;
+  color: #333;
+  flex: 1;
+}
+
+.storage-backend-label.indexeddb {
+  color: #2e7d32;
+}
+
+.storage-backend-label.chrome_storage {
+  color: #e65100;
+}
+
+.storage-backend-label.memory {
+  color: #c62828;
+}
+
+.storage-usage-percent {
+  font-size: 11px;
+  font-weight: 600;
+  color: #666;
+}
+
+.storage-usage-percent.warning {
+  color: #e65100;
+}
+
+.storage-usage-percent.critical {
+  color: #c62828;
+}
+
+.storage-progress-bar {
+  height: 4px;
+  background: #e0e0e0;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.storage-progress-fill {
+  height: 100%;
+  background: #28a745;
+  transition: width 0.3s, background-color 0.3s;
+}
+
+.storage-progress-fill.warning {
+  background: #ff9800;
+}
+
+.storage-progress-fill.critical {
+  background: #dc3545;
+}
+
+.storage-warning-message {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  padding: 6px 8px;
+  background: #fff3e0;
+  border: 1px solid #ffcc80;
+  border-radius: 4px;
+  font-size: 11px;
+  color: #e65100;
+}
+
+.storage-warning-message.critical {
+  background: #ffebee;
+  border-color: #ef9a9a;
+  color: #c62828;
+}
+
+.storage-warning-message.hidden {
+  display: none;
+}
+
+/* ============================================
+   DEGRADED MODE WARNING
+   Requirements: 10.4 - Show warning when not using IndexedDB
+   ============================================ */
+
+.degraded-mode-warning {
+  margin: 8px 16px;
+  padding: 10px 12px;
+  background: #fff3e0;
+  border: 1px solid #ffcc80;
+  border-radius: 8px;
+}
+
+.degraded-mode-warning.hidden {
+  display: none;
+}
+
+.degraded-mode-warning.memory-mode {
+  background: #ffebee;
+  border-color: #ef9a9a;
+}
+
+.degraded-warning-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.degraded-warning-header .warning-icon {
+  font-size: 16px;
+}
+
+.degraded-warning-header .warning-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #e65100;
+}
+
+.degraded-mode-warning.memory-mode .warning-title {
+  color: #c62828;
+}
+
+.degraded-mode-message {
+  font-size: 12px;
+  color: #5d4037;
+  margin: 0 0 4px 0;
+}
+
+.degraded-mode-hint {
+  font-size: 11px;
+  color: #795548;
+  margin: 0;
+  font-style: italic;
+}
+
+/* ============================================
+   EXPORT CHECKPOINT PROMPT
+   Requirements: 8.1, 8.6 - Prompt user to export after N acts
+   ============================================ */
+
+.export-checkpoint-prompt {
+  margin: 8px 16px;
+  padding: 12px;
+  background: #e3f2fd;
+  border: 1px solid #90caf9;
+  border-radius: 8px;
+}
+
+.export-checkpoint-prompt.hidden {
+  display: none;
+}
+
+.checkpoint-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.checkpoint-icon {
+  font-size: 18px;
+}
+
+.checkpoint-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1565c0;
+}
+
+.checkpoint-message {
+  font-size: 12px;
+  color: #333;
+  margin: 0 0 12px 0;
+  line-height: 1.5;
+}
+
+.checkpoint-message strong {
+  color: #1565c0;
+}
+
+.checkpoint-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.checkpoint-actions .action-btn {
+  flex: 1;
+  margin-bottom: 0;
+}
+
+/* ============================================
+   INTEGRITY STATUS INDICATOR
+   Requirements: 11.4, 11.6 - Show integrity verification status
+   ============================================ */
+
+.integrity-status-section {
+  padding: 8px 16px;
+  background: #f8f9fa;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.integrity-status-section.hidden {
+  display: none;
+}
+
+.integrity-status-section.verified {
+  background: #e8f5e9;
+}
+
+.integrity-status-section.unverified {
+  background: #fff3e0;
+}
+
+.integrity-status-section.corrupted {
+  background: #ffebee;
+}
+
+.integrity-status-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.integrity-icon {
+  font-size: 14px;
+}
+
+.integrity-label {
+  font-size: 11px;
+  font-weight: 500;
+  color: #333;
+}
+
+.integrity-status-section.verified .integrity-label {
+  color: #2e7d32;
+}
+
+.integrity-status-section.unverified .integrity-label {
+  color: #e65100;
+}
+
+.integrity-status-section.corrupted .integrity-label {
+  color: #c62828;
+}
+
+.integrity-details {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.integrity-details.hidden {
+  display: none;
+}
+
+.integrity-message {
+  font-size: 11px;
+  color: #666;
+  margin: 0 0 8px 0;
+}
+
+.integrity-status-section.corrupted .integrity-message {
+  color: #c62828;
+}
+
+.integrity-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.verification-progress {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.verification-progress.hidden {
+  display: none;
+}
+
+.verification-progress .progress-bar.small {
+  height: 4px;
+  background: #e0e0e0;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.verification-progress .progress-fill {
+  height: 100%;
+  background: #4caf50;
+  transition: width 0.3s ease;
+}
+
+.verification-progress .progress-text {
+  font-size: 10px;
+  color: #666;
+  margin: 4px 0 0 0;
+}
+
+
+/* ============================================
+   AUDIT LOG SECTION
+   Requirements: 9.4 - Export audit log
+   ============================================ */
+
+.audit-log-section {
+  padding: 16px;
+  border-top: 1px solid #e0e0e0;
+}
+
+.audit-log-section h4 {
+  margin: 0 0 8px 0;
+  font-size: 13px;
+  color: #333;
+}
+
+.audit-log-section .section-description {
+  font-size: 11px;
+  color: #666;
+  margin: 0 0 12px 0;
+}
+
+.audit-log-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.audit-log-note {
+  font-size: 10px;
+  color: #888;
+  margin: 8px 0 0 0;
+  font-style: italic;
+}

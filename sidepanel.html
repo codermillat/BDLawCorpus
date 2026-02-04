@@ -23,6 +23,87 @@
       <span id="statusText">Not connected to bdlaws.minlaw.gov.bd</span>
     </div>
 
+    <!-- Storage Status Indicator -->
+    <!-- Requirements: 2.4, 10.3 - Show storage backend, usage, and warning/critical state -->
+    <div id="storageStatusSection" class="storage-status-section">
+      <div class="storage-status-header">
+        <span class="storage-icon">💾</span>
+        <span id="storageBackendLabel" class="storage-backend-label">Storage: Unknown</span>
+        <span id="storageUsagePercent" class="storage-usage-percent">0%</span>
+      </div>
+      <div class="storage-progress-bar">
+        <div id="storageProgressFill" class="storage-progress-fill" style="width: 0%"></div>
+      </div>
+      <div id="storageWarningMessage" class="storage-warning-message hidden">
+        <span class="warning-icon">⚠️</span>
+        <span id="storageWarningText">Storage warning</span>
+      </div>
+    </div>
+
+    <!-- Degraded Mode Warning -->
+    <!-- Requirements: 10.4 - Show warning when not using IndexedDB -->
+    <div id="degradedModeWarning" class="degraded-mode-warning hidden">
+      <div class="degraded-warning-header">
+        <span class="warning-icon">⚠️</span>
+        <span class="warning-title">Degraded Storage Mode</span>
+      </div>
+      <p id="degradedModeMessage" class="degraded-mode-message">
+        IndexedDB unavailable. Data may be lost if browser closes.
+      </p>
+      <p class="degraded-mode-hint">Export your data frequently to avoid data loss.</p>
+    </div>
+
+    <!-- Export Checkpoint Prompt -->
+    <!-- Requirements: 8.1, 8.6 - Prompt user to export after N acts -->
+    <div id="exportCheckpointPrompt" class="export-checkpoint-prompt hidden">
+      <div class="checkpoint-header">
+        <span class="checkpoint-icon">📦</span>
+        <span class="checkpoint-title">Export Checkpoint</span>
+      </div>
+      <p class="checkpoint-message">
+        You have extracted <strong id="actsSinceExportCount">0</strong> acts since your last export.
+        Consider exporting your data to create a backup.
+      </p>
+      <div class="checkpoint-actions">
+        <button id="exportNowBtn" class="action-btn primary small">
+          <span class="btn-icon">💾</span>
+          <span class="btn-text">Export Now</span>
+        </button>
+        <button id="dismissCheckpointBtn" class="action-btn secondary small">
+          <span class="btn-icon">✕</span>
+          <span class="btn-text">Dismiss</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Integrity Status Indicator -->
+    <!-- Requirements: 11.4, 11.6 - Show integrity verification status -->
+    <div id="integrityStatusSection" class="integrity-status-section hidden">
+      <div class="integrity-status-header">
+        <span id="integrityStatusIcon" class="integrity-icon">✅</span>
+        <span id="integrityStatusLabel" class="integrity-label">Data Integrity: Verified</span>
+      </div>
+      <div id="integrityDetails" class="integrity-details hidden">
+        <p id="integrityMessage" class="integrity-message"></p>
+        <div class="integrity-actions">
+          <button id="verifyAllBtn" class="action-btn primary small">
+            <span class="btn-icon">🔍</span>
+            <span class="btn-text">Verify All</span>
+          </button>
+          <button id="reExtractCorruptedBtn" class="action-btn warning small hidden">
+            <span class="btn-icon">🔄</span>
+            <span class="btn-text">Re-extract Corrupted</span>
+          </button>
+        </div>
+      </div>
+      <div id="verificationProgress" class="verification-progress hidden">
+        <div class="progress-bar small">
+          <div id="verificationProgressFill" class="progress-fill" style="width: 0%"></div>
+        </div>
+        <p id="verificationProgressText" class="progress-text">Verifying...</p>
+      </div>
+    </div>
+
     <!-- Tab Navigation -->
     <nav class="tab-nav">
       <button class="tab-btn active" data-tab="capture">📄 Capture</button>
@@ -153,6 +234,12 @@
               <label for="retryBaseDelayInput">Retry Base Delay (seconds)</label>
               <input type="number" id="retryBaseDelayInput" min="2" max="30" value="5" step="1">
               <span class="setting-hint">Base delay for retry backoff (2-30s)</span>
+            </div>
+            <!-- Requirements: 8.7 - Export checkpoint threshold setting -->
+            <div class="setting-row">
+              <label for="exportCheckpointThresholdInput">Export Checkpoint (acts)</label>
+              <input type="number" id="exportCheckpointThresholdInput" min="10" max="200" value="50" step="10">
+              <span class="setting-hint">Prompt to export after N acts (10-200)</span>
             </div>
             <button id="saveQueueSettingsBtn" class="action-btn primary small">
               <span class="btn-icon">💾</span>
@@ -345,6 +432,20 @@
           <p class="research-docs-note">Research documents include README.md, CITATION.cff, and DATA_DICTIONARY.md</p>
         </div>
 
+        <!-- Audit Log Export -->
+        <!-- Requirements: 9.4 - Allow exporting the audit log as JSON -->
+        <div class="audit-log-section">
+          <h4>📝 Audit Trail</h4>
+          <p class="section-description">Export extraction audit log for research reproducibility and debugging.</p>
+          <div class="audit-log-actions">
+            <button id="exportAuditLogBtn" class="action-btn secondary">
+              <span class="btn-icon">📋</span>
+              <span class="btn-text">Export Audit Log</span>
+            </button>
+          </div>
+          <p class="audit-log-note">Audit log contains all extraction operations with timestamps and outcomes.</p>
+        </div>
+
         <!-- Manifest Viewer Section -->
         <!-- Requirements: 8.4 - Display corpus manifest contents and missing referenced acts -->
         <div id="manifestViewerSection" class="manifest-viewer-section hidden">
@@ -497,6 +598,7 @@
   <script src="bdlaw-extractor.js"></script>
   <script src="bdlaw-export.js"></script>
   <script src="bdlaw-queue.js"></script>
+  <script src="bdlaw-storage.js"></script>
   <script src="bdlaw-corpus-manifest.js"></script>
   <script src="bdlaw-quality.js"></script>
   <script src="sidepanel.js"></script>

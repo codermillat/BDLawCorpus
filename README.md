@@ -123,6 +123,33 @@ Factors affecting reproducibility:
 
 **Critical**: All extraction is user-initiated. There is no automated crawling, background scraping, or bulk harvesting.
 
+### Data Integrity Features
+
+BDLawCorpus includes comprehensive data integrity verification:
+
+- **Content Hashing**: Every extracted act has a SHA-256 hash of `content_raw`
+- **Bulk Verification**: "Verify All" button to check all acts against stored hashes
+- **Integrity Status**: Real-time display of verified/unverified/failed counts
+- **Re-extraction**: Option to re-extract acts that fail integrity checks
+
+### Storage & Recovery
+
+The extension uses a durable persistence layer with crash-safe guarantees:
+
+- **IndexedDB Primary Storage**: Acts stored in IndexedDB (~50MB+ capacity)
+- **Automatic Fallback**: Falls back to chrome.storage.local or memory if needed
+- **Extraction Receipts**: Immutable proof of successful persistence
+- **Queue Reconstruction**: Recovers queue state from receipts after crashes
+- **Export Checkpoints**: Configurable prompts to export after N extractions (10-200)
+
+### Audit Trail
+
+All storage operations are logged for research reproducibility:
+
+- **Operation Logging**: Tracks extractions, exports, migrations, errors
+- **Audit Export**: Export complete audit log as JSON from the Export tab
+- **Timestamp Tracking**: ISO-8601 timestamps for all operations
+
 ### Page Types
 
 | Page Type | URL Pattern | Extraction Available |
@@ -196,6 +223,7 @@ See [`CITATION.cff`](CITATION.cff) for academic citation metadata.
 ## Documentation
 
 - [`ARCHITECTURE.md`](docs/ARCHITECTURE.md) — System design and data flow
+- [`STORAGE_API.md`](docs/STORAGE_API.md) — StorageManager API and persistence layer
 - [`DATA_MODEL.md`](docs/DATA_MODEL.md) — Export schema specification (v3.1)
 - [`METHODOLOGY.md`](docs/METHODOLOGY.md) — Extraction workflow for academic citation
 - [`ETHICS.md`](docs/ETHICS.md) — Research ethics and access principles

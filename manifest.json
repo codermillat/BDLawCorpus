@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "BDLawCorpus",
   "short_name": "BDLawCorpus",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "description": "Academic research tool for manual extraction of Bangladeshi legal texts from bdlaws.minlaw.gov.bd with provenance metadata for reproducible corpus construction",
   "permissions": [
     "activeTab",

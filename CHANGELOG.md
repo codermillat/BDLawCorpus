@@ -7,6 +7,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Schema changes are **additive only**. Fields are never removed, only deprecated.
 
+## [1.3.0] - 2026-01-05
+
+### Added - Durable Persistence Hardening
+
+#### Storage Layer
+- **IndexedDB primary storage** - Acts now stored in IndexedDB with ~50MB+ capacity instead of chrome.storage.local
+- **Multi-backend fallback chain** - IndexedDB → chrome.storage.local → Memory with automatic degradation
+- **Extraction receipts** - Immutable proof of durable persistence with SHA-256 content hashes
+- **Write-ahead logging (WAL)** - Crash recovery via intent/complete logging
+- **Queue state reconstruction** - Derive queue state from authoritative receipts on reload
+- **Storage quota monitoring** - Warning at 80%, critical pause at 95% usage
+
+#### Data Integrity
+- **Content hash verification** - SHA-256 hashes for all `content_raw` fields
+- **Bulk integrity verification** - "Verify All" button to check all acts against stored hashes
+- **Integrity status display** - Shows verified/unverified/failed counts in UI
+
+#### Export System
+- **Export checkpoint tracking** - User-configurable threshold (10-200 acts, default 50)
+- **Export progress tracking** - Resume interrupted exports with progress state
+- **Audit log export** - Export complete audit trail as JSON
+
+#### Recovery & Resilience
+- **Lifecycle recovery** - Detect and resume interrupted queue processing
+- **Degraded mode warnings** - Visual indicators when not using primary storage
+- **Automatic migration** - Migrate existing acts from chrome.storage.local to IndexedDB
+
+#### Audit Trail
+- **Comprehensive audit logging** - All storage operations logged with timestamps
+- **Operation type tracking** - 20+ operation types including queue processing states
+- **Audit log viewer** - View and export audit entries from UI
+
+### Changed
+- Acts stored in IndexedDB instead of chrome.storage.local (queue metadata still in chrome.storage)
+- Storage status now shows active backend (IndexedDB/Chrome Storage/Memory)
+- Export checkpoint prompt now user-configurable
+
+### Documentation
+- Added `docs/STORAGE_API.md` - Complete StorageManager API documentation
+- Updated `docs/ARCHITECTURE.md` - Storage architecture diagrams and data flow
+
 ## [3.1.0] - 2025-12-30
 
 ### Added
@@ -146,6 +187,7 @@ Breaking changes (field removal, type changes) require:
 
 | Schema Version | Extension Version | Compatible With |
 |----------------|-------------------|-----------------|
+| 3.1.x | 1.3.x | 3.0.x, 2.x, 1.x consumers |
 | 3.1.x | 1.2.x | 3.0.x, 2.x, 1.x consumers |
 | 3.0.x | 1.2.x | 2.x, 1.x consumers |
 | 2.x | 1.1.x | 1.x consumers |
