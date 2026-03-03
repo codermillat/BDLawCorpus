@@ -966,7 +966,7 @@ const BDLawExtractor = {
         const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
         
         return {
-          content_hash: `sha256:${hashHex}`,
+          content_hash: hashHex,
           hash_source: 'content_raw'
         };
       }
@@ -978,7 +978,7 @@ const BDLawExtractor = {
           const hash = cryptoModule.createHash('sha256').update(contentRaw).digest('hex');
           
           return {
-            content_hash: `sha256:${hash}`,
+            content_hash: hash,
             hash_source: 'content_raw'
           };
         } catch (e) {
@@ -4835,51 +4835,9 @@ const BDLawExtractor = {
       };
     }
 
-    // Requirements: 12.1 - Automatic retry for content_selector_mismatch
-    while (retryCount < config.max_retries) {
-      retryCount++;
-      
-      // Requirements: 12.3 - Log each retry attempt
-      // Retry extraction - same selectors, different attempt
-      lastResult = this._tryAllSelectorsWithFallback(document, contentType);
-      
-      // Record retry attempt
-      retryAttempts.push(this.createRetryAttemptRecord(
-        retryCount,
-        lastResult.successful_selector,
-        lastResult.extraction_method,
-        lastResult.extraction_success
-      ));
-
-      // Requirements: 12.4 - Record retry_count and successful_selector on success
-      if (lastResult.extraction_success) {
-        return {
-          ...lastResult,
-          retry_metadata: this.createRetryMetadata({
-            retryCount,
-            maxRetries: config.max_retries,
-            successfulSelector: lastResult.successful_selector,
-            allSelectorsExhausted: false,
-            retryAttempts
-          })
-        };
-      }
-
-      // Re-classify failure for next iteration
-      lastFailureReason = this.classifyFailure({
-        selectorsAttempted: lastResult.selectors_attempted,
-        domReady: true,
-        networkError: false,
-        contentFound: lastResult.content
-      });
-
-      // If failure is no longer retryable, stop retrying
-      if (!this.isRetryableFailure(lastFailureReason)) {
-        break;
-      }
-    }
-
     // Requirements: 12.5 - Set all_selectors_exhausted: true when all retries fail
+    // NOTE: Retry loop removed - DOM is static so re-calling same selectors is a no-op.
+    // content_selector_mismatch is terminal when all selectors have been exhausted.
     return {
       ...lastResult,
       failure_reason: lastFailureReason,
@@ -5596,14 +5554,12 @@ const BDLawExtractor = {
    * @returns {number} Simple hash value
    */
   _simpleHash(str) {
-    if (!str) return 0;
-    let hash = 0;
+    if (!str) return '0_0';
+    let checksum = 0;
     for (let i = 0; i < str.length; i++) {
-      const char = str.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
-      hash = hash & hash; // Convert to 32-bit integer
+      checksum += str.charCodeAt(i);
     }
-    return hash;
+    return `${str.length}_${checksum}`;
   }
 };
 

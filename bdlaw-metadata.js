@@ -18,6 +18,8 @@ const BDLawMetadata = {
     'extracted_at',
     'scraping_method',
     'tool',
+    'tool_version',
+    'browser_info',
     'language',
     'research_purpose'
   ],
@@ -34,15 +36,42 @@ const BDLawMetadata = {
    */
   generate(url) {
     const now = new Date().toISOString();
+
+    // Capture browser identity for reproducibility documentation.
+    // Peer reviewers require the exact browser version to assess rendering
+    // determinism. navigator.userAgent is available in content scripts and
+    // extension pages but NOT in service workers — falls back gracefully.
+    let browserInfo = 'unknown';
+    try {
+      if (typeof navigator !== 'undefined' && navigator.userAgent) {
+        browserInfo = navigator.userAgent;
+      }
+    } catch (_) {
+      browserInfo = 'unavailable';
+    }
+
+    // Tool version sourced from manifest at runtime when available.
+    let toolVersion = '1.3.0';
+    try {
+      if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.getManifest) {
+        toolVersion = chrome.runtime.getManifest().version;
+      }
+    } catch (_) {
+      // Keep default version string
+    }
+
     return {
       source: 'bdlaws.minlaw.gov.bd',
-      source_url: url,  // Preserve original HTTP URL exactly
+      source_url: url,            // Preserve original HTTP URL exactly
       scraped_at: now,
-      extracted_at: now,  // Timestamp when data was extracted/exported
+      extracted_at: now,          // Timestamp when data was extracted/exported
       scraping_method: 'manual page-level extraction',
       tool: 'BDLawCorpus',
+      tool_version: toolVersion,  // Semantic version from manifest.json
+      browser_info: browserInfo,  // Full user-agent string for reproducibility
       language: 'bn',
       research_purpose: 'academic legal corpus construction',
+      robots_txt_status: 'not_present',  // bdlaws.minlaw.gov.bd returns 404 for robots.txt
       disclaimer: this.DISCLAIMER
     };
   },

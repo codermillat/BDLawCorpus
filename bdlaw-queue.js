@@ -90,6 +90,36 @@ const FAILURE_REASONS = {
 };
 
 // ============================================
+// FAILURE CLASSIFICATION SETS
+// TRANSIENT: environmental/recoverable — retry via persistent retry queue
+// PERMANENT: structural/content — will not succeed on retry, do not queue
+// ============================================
+
+/**
+ * Transient failure reasons — caused by environment, not DOM structure.
+ * These may resolve on a subsequent attempt (network recovery, DOM timeout).
+ */
+const TRANSIENT_FAILURES = new Set([
+  FAILURE_REASONS.NETWORK_ERROR,
+  FAILURE_REASONS.DOM_NOT_READY,
+  FAILURE_REASONS.DOM_TIMEOUT,
+  FAILURE_REASONS.NAVIGATION_ERROR,
+  FAILURE_REASONS.UNKNOWN_ERROR
+]);
+
+/**
+ * Permanent failure reasons — caused by DOM structure or missing content.
+ * Retrying will not produce different results.
+ */
+const PERMANENT_FAILURES = new Set([
+  FAILURE_REASONS.CONTENT_SELECTOR_MISMATCH,
+  FAILURE_REASONS.CONTAINER_NOT_FOUND,
+  FAILURE_REASONS.CONTENT_EMPTY,
+  FAILURE_REASONS.CONTENT_BELOW_THRESHOLD,
+  FAILURE_REASONS.EXTRACTION_ERROR
+]);
+
+// ============================================
 // EXTRACTION STATUS CONSTANTS
 // Requirements: 6.1
 // ============================================
@@ -107,6 +137,8 @@ const BDLawQueue = {
   FAILURE_REASONS,
   EXTRACTION_STATUS,
   LEGAL_CONTENT_SIGNALS,
+  TRANSIENT_FAILURES,
+  PERMANENT_FAILURES,
   /**
    * Extract volume number from URL
    * Requirements: 29.1, 29.2, 29.5
@@ -712,6 +744,94 @@ const BDLawQueue = {
   calculateRetryDelay(retryCount, baseDelay = 5000) {
     // Exponential backoff: base_delay * 2^(retry_count - 1)
     return baseDelay * Math.pow(2, Math.max(0, retryCount - 1));
+  },
+
+  // ============================================
+  // FAILURE CLASSIFICATION & PERSISTENT RETRY QUEUE
+  // ============================================
+
+  /**
+   * Classify a failure reason as transient or permanent.
+   *
+   * TRANSIENT: environmental failures (network, DOM timing) that may resolve
+   *   on a subsequent attempt → add to persistent retry queue.
+   * PERMANENT: structural failures (selector mismatch, empty content) that
+   *   will not resolve on retry → record and do not re-queue.
+   *
+   * @param {string} reason - Failure reason (one of FAILURE_REASONS values)
+   * @returns {'transient'|'permanent'} Classification string
+   */
+  classifyFailure(reason) {
+    if (!reason || typeof reason !== 'string') return 'permanent';
+    if (TRANSIENT_FAILURES.has(reason)) return 'transient';
+    return 'permanent';
+  },
+
+  /**
+   * Build a persistent retry queue from a list of failed extractions.
+   *
+   * Rules:
+   * - PERMANENT failures are never queued for retry.
+   * - TRANSIENT failures below their retry limit are queued.
+   * - TRANSIENT failures that have reached their retry limit are classified
+   *   as 'transient_exhausted' and moved to permanentFailures.
+   *
+   * Each retryQueue entry receives:
+   *   - failure_classification: 'transient'
+   *   - next_retry_delay_ms: exponential backoff delay for the next attempt
+   *
+   * @param {Array} failedExtractions - Array of failed extraction entries
+   *   Each entry must have: failure_reason, retry_count, max_retries
+   * @param {number} [maxRetriesPerItem] - Global retry limit override.
+   *   If omitted, uses each entry's own max_retries field (default: 3).
+   * @returns {{
+   *   retryQueue: Object[],
+   *   permanentFailures: Object[],
+   *   stats: { total: number, retryable: number, permanent: number }
+   * }}
+   */
+  buildRetryQueue(failedExtractions, maxRetriesPerItem) {
+    const list = Array.isArray(failedExtractions) ? failedExtractions : [];
+    const retryQueue = [];
+    const permanentFailures = [];
+
+    for (const entry of list) {
+      const classification = this.classifyFailure(entry.failure_reason);
+      const limit = maxRetriesPerItem !== undefined
+        ? maxRetriesPerItem
+        : (entry.max_retries != null ? entry.max_retries : 3);
+      const retryCount = entry.retry_count != null ? entry.retry_count : 0;
+
+      if (classification === 'permanent') {
+        permanentFailures.push({ ...entry, failure_classification: 'permanent' });
+        continue;
+      }
+
+      // Transient: only add to retry queue if retry limit not yet reached
+      if (retryCount < limit) {
+        retryQueue.push({
+          ...entry,
+          failure_classification: 'transient',
+          next_retry_delay_ms: this.calculateRetryDelay(retryCount + 1)
+        });
+      } else {
+        // Transient but all retries exhausted → treat as non-recoverable
+        permanentFailures.push({
+          ...entry,
+          failure_classification: 'transient_exhausted'
+        });
+      }
+    }
+
+    return {
+      retryQueue,
+      permanentFailures,
+      stats: {
+        total: list.length,
+        retryable: retryQueue.length,
+        permanent: permanentFailures.length
+      }
+    };
   },
 
   // ============================================

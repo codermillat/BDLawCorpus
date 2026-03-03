@@ -9,8 +9,10 @@
     "scripting",
     "downloads",
     "storage",
+    "unlimitedStorage",
     "sidePanel",
-    "tabs"
+    "tabs",
+    "alarms"
   ],
   "host_permissions": [
     "http://bdlaws.minlaw.gov.bd/*"

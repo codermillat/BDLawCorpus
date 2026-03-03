@@ -980,6 +980,7 @@ const StorageManager = {
         
         chrome.storage.local.get([testKey], (result) => {
           if (chrome.runtime.lastError) {
+            chrome.storage.local.remove([testKey], () => {}); // cleanup on failure
             reject(new StorageError(
               StorageErrorType.BACKEND_UNAVAILABLE,
               `chrome.storage.local read test failed: ${chrome.runtime.lastError.message}`,
@@ -989,6 +990,7 @@ const StorageManager = {
           }
           
           if (result[testKey] !== testValue) {
+            chrome.storage.local.remove([testKey], () => {}); // cleanup on failure
             reject(new StorageError(
               StorageErrorType.BACKEND_UNAVAILABLE,
               'chrome.storage.local verification failed: read value does not match written value',
@@ -997,7 +999,7 @@ const StorageManager = {
             return;
           }
           
-          // Clean up test key
+          // Clean up test key on success
           chrome.storage.local.remove([testKey], () => {
             resolve();
           });
@@ -1681,8 +1683,13 @@ const StorageManager = {
    * @returns {Promise<Object|null>}
    */
   async loadAct(actId) {
-    // Stub - will be implemented in later tasks
-    return null;
+    if (this._activeBackend === 'indexeddb') {
+      return this.loadActFromIndexedDB(actId);
+    } else if (this._activeBackend === 'chrome_storage') {
+      return ChromeStorageBackend.loadAct(actId);
+    } else {
+      return MemoryBackend.loadAct(actId);
+    }
   },
 
   /**
@@ -2285,18 +2292,18 @@ const StorageManager = {
     let usageBytes = 0;
 
     // Estimate acts size
-    for (const [key, act] of this._memoryStore.acts) {
+    for (const [key, act] of MemoryBackend._acts) {
       usageBytes += JSON.stringify(act).length * 2; // UTF-16 encoding
     }
 
     // Estimate receipts size
-    usageBytes += JSON.stringify(this._memoryStore.receipts).length * 2;
+    usageBytes += JSON.stringify(MemoryBackend._receipts).length * 2;
 
     // Estimate WAL size
-    usageBytes += JSON.stringify(this._memoryStore.wal).length * 2;
+    usageBytes += JSON.stringify(MemoryBackend._wal).length * 2;
 
     // Estimate audit log size
-    usageBytes += JSON.stringify(this._memoryStore.audit_log).length * 2;
+    usageBytes += JSON.stringify(MemoryBackend._auditLog).length * 2;
 
     // Memory backend has no hard quota, but we set a reasonable limit
     // to trigger warnings (100MB)
