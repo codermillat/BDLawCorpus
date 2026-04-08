@@ -1,0 +1,20 @@
+{
+  "export_type": "audit_log",
+  "exported_at": "2026-04-08T22:30:39.458Z",
+  "entry_count": 1,
+  "schema_version": "3.1",
+  "entries": [
+    {
+      "timestamp": "2026-04-08T21:17:35.399Z",
+      "operation": "queue_processing_resumed",
+      "context": {
+        "pendingCount": 0
+      },
+      "actId": null,
+      "outcome": null,
+      "contentHash": null,
+      "storageLocation": "indexeddb",
+      "log_id": 1
+    }
+  ]
+}

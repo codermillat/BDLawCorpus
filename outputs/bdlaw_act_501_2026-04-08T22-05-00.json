@@ -1,0 +1,159 @@
+{
+  "identifiers": {
+    "internal_id": "501",
+    "note": "internal_id is the bdlaws database identifier, not the legal citation number"
+  },
+  "title_raw": "The Government of Bangladesh (Services) (Repeal) Ordinance, 1975",
+  "title_normalized": "The Government of Bangladesh (Services) (Repeal) Ordinance, 1975",
+  "content_raw": "The Government of Bangladesh (Services) (Repeal) Ordinance, 1975\n\n                        \n                        \n                    \n                    \n                        \n                        \n                        \n                        \n                        \n                        \n                        \n                        \n                        \n                        \n                        \n                        \n                        \n                             (\n                                \n                                    \n                                    \n                                        \n                                            Ordinance\n                                            \n                                        \n                                        NO. XLIV OF 1975\n                                    \n                                \n\n                                )\n\nAn Ordinance to repeal the Government of Bangladesh (Services) Order, 1972.\n\n                                    \n                                    \n                                \n                            \n                        \n                        \n                            \n                            \n                                 \n\n \n\n \n\nWHEREAS it is expedient to repeal the Government of Bangladesh (Services) Order, 1972 (P.O. No. 9 of 1972);\n\n \n\n \n\n \n\n \n\nAND WHEREAS Parliament is not in session and the President is satisfied that circumstances exist which render immediate action necessary;\n\n \n\n \n\n \n\n \n\nNOW, THEREFORE, in pursuance of the Proclamation of the 20th August, 1975, and in exercise of the powers conferred by clause (1) of article 93 of the Constitution of the People’s Republic of Bangladesh, the President is pleased to make and promulgate the following Ordinance :-\n\nAn Ordinance to repeal the Government of Bangladesh (Services) Order, 1972.\n\nShort title\n1. This Ordinance may be called the Government of Bangladesh (Services) (Repeal) Ordinance, 1975.\n\nRepeal of P.O. No. 9 of 1972\n2. The Government of Bangladesh (Services) Order, 1972 (P.O. No. 9 of 1972), is hereby repealed.",
+  "content_normalized": "The Government of Bangladesh (Services) (Repeal) Ordinance, 1975\n\n                        \n                        \n                    \n                    \n                        \n                        \n                        \n                        \n                        \n                        \n                        \n                        \n                        \n                        \n                        \n                        \n                        \n                             (\n                                \n                                    \n                                    \n                                        \n                                            Ordinance\n                                            \n                                        \n                                        NO. XLIV OF 1975\n                                    \n                                \n\n                                )\n\nAn Ordinance to repeal the Government of Bangladesh (Services) Order, 1972.\n\n                                    \n                                    \n                                \n                            \n                        \n                        \n                            \n                            \n                                 \n\n \n\n \n\nWHEREAS it is expedient to repeal the Government of Bangladesh (Services) Order, 1972 (P.O. No. 9 of 1972);\n\n \n\n \n\n \n\n \n\nAND WHEREAS Parliament is not in session and the President is satisfied that circumstances exist which render immediate action necessary;\n\n \n\n \n\n \n\n \n\nNOW, THEREFORE, in pursuance of the Proclamation of the 20th August, 1975, and in exercise of the powers conferred by clause (1) of article 93 of the Constitution of the People’s Republic of Bangladesh, the President is pleased to make and promulgate the following Ordinance :-\n\nAn Ordinance to repeal the Government of Bangladesh (Services) Order, 1972.\n\nShort title\n1. This Ordinance may be called the Government of Bangladesh (Services) (Repeal) Ordinance, 1975.\n\nRepeal of P.O. No. 9 of 1972\n2. The Government of Bangladesh (Services) Order, 1972 (P.O. No. 9 of 1972), is hereby repealed.",
+  "content_corrected": "The Government of Bangladesh (Services) (Repeal) Ordinance, 1975\n\n                        \n                        \n                    \n                    \n                        \n                        \n                        \n                        \n                        \n                        \n                        \n                        \n                        \n                        \n                        \n                        \n                        \n                             (\n                                \n                                    \n                                    \n                                        \n                                            Ordinance\n                                            \n                                        \n                                        NO. XLIV OF 1975\n                                    \n                                \n\n                                )\n\nAn Ordinance to repeal the Government of Bangladesh (Services) Order, 1972.\n\n                                    \n                                    \n                                \n                            \n                        \n                        \n                            \n                            \n                                 \n\n \n\n \n\nWHEREAS it is expedient to repeal the Government of Bangladesh (Services) Order, 1972 (P.O. No. 9 of 1972);\n\n \n\n \n\n \n\n \n\nAND WHEREAS Parliament is not in session and the President is satisfied that circumstances exist which render immediate action necessary;\n\n \n\n \n\n \n\n \n\nNOW, THEREFORE, in pursuance of the Proclamation of the 20th August, 1975, and in exercise of the powers conferred by clause (1) of article 93 of the Constitution of the People’s Republic of Bangladesh, the President is pleased to make and promulgate the following Ordinance :-\n\nAn Ordinance to repeal the Government of Bangladesh (Services) Order, 1972.\n\nShort title\n1. This Ordinance may be called the Government of Bangladesh (Services) (Repeal) Ordinance, 1975.\n\nRepeal of P.O. No. 9 of 1972\n2. The Government of Bangladesh (Services) Order, 1972 (P.O. No. 9 of 1972), is hereby repealed.",
+  "url": "http://bdlaws.minlaw.gov.bd/act-details-501.html",
+  "volume_number": "chronological_index",
+  "legal_status": "unknown",
+  "temporal_status": "historical_text",
+  "temporal_disclaimer": "No inference of current legal force or applicability",
+  "lexical_references": {
+    "count": 3,
+    "method": "pattern-based detection",
+    "disclaimer": "Detected via pattern matching. No legal force or applicability implied.",
+    "relationship_inference": "explicitly_prohibited",
+    "references": [
+      {
+        "citation_text": "P.O. No. 9 of 1972",
+        "lexical_relation_type": "mention",
+        "lexical_relation_confidence": "medium",
+        "negation_present": false,
+        "negation_word": null,
+        "negation_context": null,
+        "position": 1414,
+        "context_before": "Government of Bangladesh (Services) Order, 1972 (",
+        "context_after": ");\n\n \n\n \n\n \n\n \n\nAND WHEREAS Parliament is not in s"
+      },
+      {
+        "citation_text": "P.O. No. 9 of 1972",
+        "lexical_relation_type": "repeal",
+        "lexical_relation_confidence": "medium",
+        "negation_present": false,
+        "negation_word": null,
+        "negation_context": null,
+        "position": 2076,
+        "context_before": "h (Services) (Repeal) Ordinance, 1975.\n\nRepeal of",
+        "context_after": "2. The Government of Bangladesh (Services) Order,"
+      },
+      {
+        "citation_text": "P.O. No. 9 of 1972",
+        "lexical_relation_type": "repeal",
+        "lexical_relation_confidence": "medium",
+        "negation_present": false,
+        "negation_word": null,
+        "negation_context": null,
+        "position": 2151,
+        "context_before": "Government of Bangladesh (Services) Order, 1972 (",
+        "context_after": "), is hereby repealed."
+      }
+    ]
+  },
+  "schedules": {
+    "representation": "raw_html",
+    "extraction_method": "verbatim_dom_capture",
+    "processed": false,
+    "html_content": null
+  },
+  "transformation_log": [],
+  "protected_sections": [],
+  "numeric_regions": [],
+  "data_quality": {
+    "completeness": "complete",
+    "completeness_disclaimer": "Website representation incomplete; legal completeness unknown",
+    "flags": [],
+    "ml_risk_factors": [],
+    "known_limitations": [
+      "Section boundary detection is presentation-dependent",
+      "Gazette PDF comparison is out of scope",
+      "Amendment chain inference is prohibited",
+      "Preamble and enactment clause may not be present in all HTML extractions",
+      "Statutory footnotes may be incomplete or missing from source HTML"
+    ],
+    "ml_usage_warning": "HTML artifacts, encoding noise, and structural gaps are present; suitable only for exploratory retrieval and analysis. Not validated for training or evaluation."
+  },
+  "extraction_risk": {
+    "possible_truncation": false,
+    "reason": "none"
+  },
+  "numeric_representation": [
+    "en_digits"
+  ],
+  "language_distribution": {
+    "bn_ratio": 0,
+    "en_ratio": 1
+  },
+  "editorial_content_present": true,
+  "source_authority": "bdlaws_html_only",
+  "authority_rank": [
+    "bdlaws_html"
+  ],
+  "marker_frequency": {
+    "ধারা": {
+      "count": 0,
+      "method": "raw string frequency, including cross-references"
+    },
+    "অধ্যায়": {
+      "count": 0,
+      "method": "raw string frequency"
+    },
+    "তফসিল": {
+      "count": 0,
+      "method": "raw string frequency, including schedule references"
+    }
+  },
+  "html_capture_definition": "Browser-rendered DOM text nodes",
+  "dom_extraction_method": "textContent",
+  "capture_environment": {
+    "browser": "Chrome",
+    "browser_engine": "Blink",
+    "extraction_api": "element.textContent",
+    "innerText_forbidden": true
+  },
+  "content_raw_disclaimer": "Represents browser-parsed DOM text via textContent, not raw HTML or server response bytes",
+  "content_raw_sha256": "8df00ee0f10da6d559e3c7b50d5ed22536eb9e4680b561f37f8bc133f3d67565",
+  "reference_semantics": "string_match_only",
+  "reference_warning": "Keywords detected in proximity to citation strings. No legal relationship, effect, direction, or applicability is implied.",
+  "negation_handling": "classification_suppression_only",
+  "numeric_integrity": "best_effort_html_only",
+  "numeric_warning": "Numeric expressions may be incomplete or malformed due to HTML source limitations",
+  "encoding_policy": "preserve_html_artifacts",
+  "encoding_scope": "non-semantic, display-only",
+  "trust_boundary": {
+    "can_trust": [
+      "Text appeared on bdlaws HTML pages at extraction time",
+      "No semantic rewriting was applied",
+      "Transformations are logged"
+    ],
+    "must_not_trust": [
+      "Legal validity",
+      "Gazette equivalence",
+      "Completeness",
+      "Numerical accuracy",
+      "Amendment correctness",
+      "Post-extraction relevance"
+    ]
+  },
+  "_metadata": {
+    "source": "bdlaws.minlaw.gov.bd",
+    "source_url": "http://bdlaws.minlaw.gov.bd/act-details-501.html",
+    "scraped_at": "2026-04-08T16:28:04.936Z",
+    "extracted_at": "2026-04-08T16:28:04.936Z",
+    "scraping_method": "manual page-level extraction",
+    "tool": "BDLawCorpus",
+    "tool_version": "1.3.0",
+    "browser_info": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36",
+    "language": "bn",
+    "research_purpose": "academic legal corpus construction",
+    "robots_txt_status": "not_present",
+    "disclaimer": "This tool performs manual extraction of publicly available legal texts for academic research. No automated crawling, modification, or interpretation is performed.",
+    "content_hash": "8df00ee0f10da6d559e3c7b50d5ed22536eb9e4680b561f37f8bc133f3d67565",
+    "hash_source": "content_raw",
+    "schema_version": "3.1"
+  }
+}

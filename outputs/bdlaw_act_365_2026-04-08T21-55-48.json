@@ -1,0 +1,125 @@
+{
+  "identifiers": {
+    "internal_id": "365",
+    "note": "internal_id is the bdlaws database identifier, not the legal citation number"
+  },
+  "title_raw": "The Bangladesh (Collection of Taxes) Order, 1971 (Acting President's Order)",
+  "title_normalized": "The Bangladesh (Collection of Taxes) Order, 1971 (Acting President's Order)",
+  "content_raw": "The Bangladesh (Collection of Taxes) Order, 1971 (Acting President's Order)\n\n                        \n                        \n                    \n                    \n                        \n                        \n                             (\n                                \n                                    \n                                    \n                                        \n                                            \n                                            ACTING PRESIDENT'S ORDER\n                                        \n                                        NO. 1 OF 1971\n                                    \n                                \n\n                                )\n\nWHEREAS it is expedient to make provisions for the collection of taxes in Bangladesh;    \tNOW, THEREFORE, in pursuance of the Declaration of Independence of Bangladesh and in exercise of all powers enabling him in that behalf, the Acting President is pleased to make the following Order:-\n\n1. (1) This Order may be called the Bangladesh (Collection of Taxes) Order, 1971.    \t(2) It extends to the whole of Bangladesh.    \t(3) It shall come into force at once and shall be deemed to have taken effect on the 16th day of December, 1971.\n\n2. All taxes except land revenue, payable or leviable under any law made before the commencement of this Order either by the Government of Pakistan or by the Government of East Pakistan shall be continued to be levied and collected at the rates specified therein by the person or authority empowered to levy and collect the same or by such other person or authority as the Government of Bangladesh may appoint in this behalf.\n\n3. To avoid any doubt, it is declared that land revenue shall be reviewed by the Government of Bangladesh and shall not be collected until such time as the Government of Bangladesh may, by notification in the official Gazette, direct otherwise.\n\n4. In this Order,-\n\n \n\n \n\n \n\n \n\n(a) 'law' includes rule, regulation, bye-law, order, instrument and notification;\n\n \n\n \n\n \n\n \n\n(b) 'tax' includes duty, cess, rate, penalty, fee and levy.\n\n5. For the purposes of this Order, references in any law to “Central Government”, “Provincial Government”, “Pakistan” and “East Pakistan”, shall, unless the context otherwise requires, be construed as references to “Government of Bangladesh” and “Bangladesh” respectively.",
+  "content_normalized": "The Bangladesh (Collection of Taxes) Order, 1971 (Acting President's Order)\n\n                        \n                        \n                    \n                    \n                        \n                        \n                             (\n                                \n                                    \n                                    \n                                        \n                                            \n                                            ACTING PRESIDENT'S ORDER\n                                        \n                                        NO. 1 OF 1971\n                                    \n                                \n\n                                )\n\nWHEREAS it is expedient to make provisions for the collection of taxes in Bangladesh;    \tNOW, THEREFORE, in pursuance of the Declaration of Independence of Bangladesh and in exercise of all powers enabling him in that behalf, the Acting President is pleased to make the following Order:-\n\n1. (1) This Order may be called the Bangladesh (Collection of Taxes) Order, 1971.    \t(2) It extends to the whole of Bangladesh.    \t(3) It shall come into force at once and shall be deemed to have taken effect on the 16th day of December, 1971.\n\n2. All taxes except land revenue, payable or leviable under any law made before the commencement of this Order either by the Government of Pakistan or by the Government of East Pakistan shall be continued to be levied and collected at the rates specified therein by the person or authority empowered to levy and collect the same or by such other person or authority as the Government of Bangladesh may appoint in this behalf.\n\n3. To avoid any doubt, it is declared that land revenue shall be reviewed by the Government of Bangladesh and shall not be collected until such time as the Government of Bangladesh may, by notification in the official Gazette, direct otherwise.\n\n4. In this Order,-\n\n \n\n \n\n \n\n \n\n(a) 'law' includes rule, regulation, bye-law, order, instrument and notification;\n\n \n\n \n\n \n\n \n\n(b) 'tax' includes duty, cess, rate, penalty, fee and levy.\n\n5. For the purposes of this Order, references in any law to “Central Government”, “Provincial Government”, “Pakistan” and “East Pakistan”, shall, unless the context otherwise requires, be construed as references to “Government of Bangladesh” and “Bangladesh” respectively.",
+  "content_corrected": "The Bangladesh (Collection of Taxes) Order, 1971 (Acting President's Order)\n\n                        \n                        \n                    \n                    \n                        \n                        \n                             (\n                                \n                                    \n                                    \n                                        \n                                            \n                                            ACTING PRESIDENT'S ORDER\n                                        \n                                        NO. 1 OF 1971\n                                    \n                                \n\n                                )\n\nWHEREAS it is expedient to make provisions for the collection of taxes in Bangladesh;    \tNOW, THEREFORE, in pursuance of the Declaration of Independence of Bangladesh and in exercise of all powers enabling him in that behalf, the Acting President is pleased to make the following Order:-\n\n1. (1) This Order may be called the Bangladesh (Collection of Taxes) Order, 1971.    \t(2) It extends to the whole of Bangladesh.    \t(3) It shall come into force at once and shall be deemed to have taken effect on the 16th day of December, 1971.\n\n2. All taxes except land revenue, payable or leviable under any law made before the commencement of this Order either by the Government of Pakistan or by the Government of East Pakistan shall be continued to be levied and collected at the rates specified therein by the person or authority empowered to levy and collect the same or by such other person or authority as the Government of Bangladesh may appoint in this behalf.\n\n3. To avoid any doubt, it is declared that land revenue shall be reviewed by the Government of Bangladesh and shall not be collected until such time as the Government of Bangladesh may, by notification in the official Gazette, direct otherwise.\n\n4. In this Order,-\n\n \n\n \n\n \n\n \n\n(a) 'law' includes rule, regulation, bye-law, order, instrument and notification;\n\n \n\n \n\n \n\n \n\n(b) 'tax' includes duty, cess, rate, penalty, fee and levy.\n\n5. For the purposes of this Order, references in any law to “Central Government”, “Provincial Government”, “Pakistan” and “East Pakistan”, shall, unless the context otherwise requires, be construed as references to “Government of Bangladesh” and “Bangladesh” respectively.",
+  "url": "http://bdlaws.minlaw.gov.bd/act-details-365.html",
+  "volume_number": "chronological_index",
+  "legal_status": "unknown",
+  "temporal_status": "historical_text",
+  "temporal_disclaimer": "No inference of current legal force or applicability",
+  "lexical_references": {
+    "count": 0,
+    "method": "pattern-based detection",
+    "disclaimer": "Detected via pattern matching. No legal force or applicability implied.",
+    "relationship_inference": "explicitly_prohibited",
+    "references": []
+  },
+  "schedules": {
+    "representation": "raw_html",
+    "extraction_method": "verbatim_dom_capture",
+    "processed": false,
+    "html_content": null
+  },
+  "transformation_log": [],
+  "protected_sections": [],
+  "numeric_regions": [],
+  "data_quality": {
+    "completeness": "complete",
+    "completeness_disclaimer": "Website representation incomplete; legal completeness unknown",
+    "flags": [],
+    "ml_risk_factors": [],
+    "known_limitations": [
+      "Section boundary detection is presentation-dependent",
+      "Gazette PDF comparison is out of scope",
+      "Amendment chain inference is prohibited",
+      "Preamble and enactment clause may not be present in all HTML extractions",
+      "Statutory footnotes may be incomplete or missing from source HTML"
+    ],
+    "ml_usage_warning": "HTML artifacts, encoding noise, and structural gaps are present; suitable only for exploratory retrieval and analysis. Not validated for training or evaluation."
+  },
+  "extraction_risk": {
+    "possible_truncation": false,
+    "reason": "none"
+  },
+  "numeric_representation": [
+    "en_digits"
+  ],
+  "language_distribution": {
+    "bn_ratio": 0,
+    "en_ratio": 1
+  },
+  "editorial_content_present": true,
+  "source_authority": "bdlaws_html_only",
+  "authority_rank": [
+    "bdlaws_html"
+  ],
+  "marker_frequency": {
+    "ধারা": {
+      "count": 0,
+      "method": "raw string frequency, including cross-references"
+    },
+    "অধ্যায়": {
+      "count": 0,
+      "method": "raw string frequency"
+    },
+    "তফসিল": {
+      "count": 0,
+      "method": "raw string frequency, including schedule references"
+    }
+  },
+  "html_capture_definition": "Browser-rendered DOM text nodes",
+  "dom_extraction_method": "textContent",
+  "capture_environment": {
+    "browser": "Chrome",
+    "browser_engine": "Blink",
+    "extraction_api": "element.textContent",
+    "innerText_forbidden": true
+  },
+  "content_raw_disclaimer": "Represents browser-parsed DOM text via textContent, not raw HTML or server response bytes",
+  "content_raw_sha256": "b4eb331ab95026464f2c5f17df2976c51ecbc26567b46a87965c55e0ee35d9e9",
+  "reference_semantics": "string_match_only",
+  "reference_warning": "Keywords detected in proximity to citation strings. No legal relationship, effect, direction, or applicability is implied.",
+  "negation_handling": "classification_suppression_only",
+  "numeric_integrity": "best_effort_html_only",
+  "numeric_warning": "Numeric expressions may be incomplete or malformed due to HTML source limitations",
+  "encoding_policy": "preserve_html_artifacts",
+  "encoding_scope": "non-semantic, display-only",
+  "trust_boundary": {
+    "can_trust": [
+      "Text appeared on bdlaws HTML pages at extraction time",
+      "No semantic rewriting was applied",
+      "Transformations are logged"
+    ],
+    "must_not_trust": [
+      "Legal validity",
+      "Gazette equivalence",
+      "Completeness",
+      "Numerical accuracy",
+      "Amendment correctness",
+      "Post-extraction relevance"
+    ]
+  },
+  "_metadata": {
+    "source": "bdlaws.minlaw.gov.bd",
+    "source_url": "http://bdlaws.minlaw.gov.bd/act-details-365.html",
+    "scraped_at": "2026-04-08T16:41:09.915Z",
+    "extracted_at": "2026-04-08T16:41:09.915Z",
+    "scraping_method": "manual page-level extraction",
+    "tool": "BDLawCorpus",
+    "tool_version": "1.3.0",
+    "browser_info": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36",
+    "language": "bn",
+    "research_purpose": "academic legal corpus construction",
+    "robots_txt_status": "not_present",
+    "disclaimer": "This tool performs manual extraction of publicly available legal texts for academic research. No automated crawling, modification, or interpretation is performed.",
+    "content_hash": "b4eb331ab95026464f2c5f17df2976c51ecbc26567b46a87965c55e0ee35d9e9",
+    "hash_source": "content_raw",
+    "schema_version": "3.1"
+  }
+}

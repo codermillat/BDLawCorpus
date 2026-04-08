@@ -1,0 +1,25 @@
+cff-version: 1.2.0
+message: "If you use this dataset, please cite it as below."
+type: dataset
+title: "BDLawCorpus: Bangladeshi Legal Text Corpus"
+version: "2.0"
+date-released: "2026-04-08"
+url: "http://bdlaws.minlaw.gov.bd"
+repository: "https://github.com/bdlawcorpus/bdlawcorpus"
+abstract: >-
+  A research-grade corpus of Bangladeshi legal texts extracted from 
+  bdlaws.minlaw.gov.bd using the BDLawCorpus Chrome extension.
+  Contains 0 acts from 
+  0 volumes with 0 total characters.
+  Extraction period: N/A to N/A.
+keywords:
+  - legal corpus
+  - Bangladesh law
+  - legal NLP
+  - legislative text
+  - Bangladeshi legislation
+  - legal research
+license: "CC-BY-4.0"
+authors:
+  - name: "BDLawCorpus Contributors"
+    affiliation: "Academic Research"

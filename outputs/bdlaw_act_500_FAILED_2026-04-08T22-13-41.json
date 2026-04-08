@@ -1,0 +1,59 @@
+{
+  "act_number": "500",
+  "title": "The Appropriation Act, 1975",
+  "url": "http://bdlaws.minlaw.gov.bd/act-details-500.html",
+  "extraction_status": "failed",
+  "failure_reason": "site_unavailable",
+  "attempts": 3,
+  "attempt_history": [
+    {
+      "attempt_number": 1,
+      "outcome": "failed",
+      "reason": "site_unavailable",
+      "selector_strategy": "standard_selectors",
+      "timestamp": "2026-04-08T21:18:36.024Z"
+    },
+    {
+      "attempt_number": 2,
+      "outcome": "failed",
+      "reason": "site_unavailable",
+      "selector_strategy": "broader_selectors",
+      "timestamp": "2026-04-08T21:19:25.611Z"
+    },
+    {
+      "attempt_number": 3,
+      "timestamp": "2026-04-08T21:21:07.971Z",
+      "reason": "site_unavailable",
+      "outcome": "failed",
+      "selector_strategy": "broader_selectors"
+    }
+  ],
+  "content_raw": null,
+  "content_normalized": null,
+  "content_corrected": null,
+  "_metadata": {
+    "first_attempt_at": "2026-04-08T21:18:36.024Z",
+    "last_attempt_at": "2026-04-08T21:21:07.971Z",
+    "total_attempts": 3,
+    "max_retries_reached": true,
+    "extraction_status": "failed",
+    "failure_reason": "site_unavailable",
+    "selector_strategies_used": [
+      "standard_selectors",
+      "broader_selectors"
+    ],
+    "used_broader_selectors": true
+  },
+  "trust_boundary": {
+    "can_trust": [
+      "Text extraction was attempted at the recorded timestamps",
+      "Failure reasons are accurately recorded",
+      "No content inference or auto-correction was applied"
+    ],
+    "must_not_trust": [
+      "Content availability (extraction failed)",
+      "Legal validity",
+      "Completeness"
+    ]
+  }
+}

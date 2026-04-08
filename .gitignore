@@ -75,19 +75,6 @@ logs/
 *.log
 
 # ============================================
-# Exported Corpus Files
-# ============================================
-# JSON exports from the extension
-outputs/
-exports/
-corpus/
-bdlaw_*.json
-bdlaw_act_*.json
-bdlaw_volume_*.json
-bdlaw_corpus_*.json
-*_corpus_export.json
-
-# ============================================
 # Chrome Extension Development
 # ============================================
 # Packed extension files

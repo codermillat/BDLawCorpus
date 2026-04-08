@@ -1,0 +1,44 @@
+{
+  "act_number": "1318",
+  "title": "THE [***] GOVERNMENT INDEMNITY REGULATION, 1822",
+  "url": "http://bdlaws.minlaw.gov.bd/act-details-1318.html",
+  "extraction_status": "failed",
+  "failure_reason": "content_selector_mismatch",
+  "attempts": 1,
+  "attempt_history": [
+    {
+      "attempt_number": 1,
+      "timestamp": "2026-04-08T21:20:46.383Z",
+      "reason": "content_selector_mismatch",
+      "outcome": "failed",
+      "selector_strategy": "standard_selectors"
+    }
+  ],
+  "content_raw": null,
+  "content_normalized": null,
+  "content_corrected": null,
+  "_metadata": {
+    "first_attempt_at": "2026-04-08T21:20:46.383Z",
+    "last_attempt_at": "2026-04-08T21:20:46.383Z",
+    "total_attempts": 1,
+    "max_retries_reached": false,
+    "extraction_status": "failed",
+    "failure_reason": "content_selector_mismatch",
+    "selector_strategies_used": [
+      "standard_selectors"
+    ],
+    "used_broader_selectors": false
+  },
+  "trust_boundary": {
+    "can_trust": [
+      "Text extraction was attempted at the recorded timestamps",
+      "Failure reasons are accurately recorded",
+      "No content inference or auto-correction was applied"
+    ],
+    "must_not_trust": [
+      "Content availability (extraction failed)",
+      "Legal validity",
+      "Completeness"
+    ]
+  }
+}
