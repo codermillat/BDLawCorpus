@@ -2,41 +2,55 @@
 
 ## Current Work Focus
 
-All 10 confirmed bugs have been fixed and the TRANSIENT/PERMANENT failure classification with persistent retry queue has been added to `bdlaw-queue.js`. Memory bank is being updated to reflect completed work.
+Documentation and memory-bank synchronization after hardening changes for:
+- dual protocol support (`http` + `https`) on `bdlaws.minlaw.gov.bd`
+- failure taxonomy alignment across queue + side panel (`ACT_NOT_FOUND` vs `SITE_UNAVAILABLE`)
+- classification-driven retry behavior and updated property tests.
 
 ## Completed in This Session
 
-### Bug Fixes Applied
+### Public Documentation Updates
+- `README.md`
+  - Added explicit HTTP/HTTPS support statement
+  - Added Failure Taxonomy & Retry Policy section
+  - Updated schema sample `source_url` to HTTPS example
+- `docs/ARCHITECTURE.md`
+  - Updated domain/protocol model to hostname + allowed protocols
+  - Updated host permission snippet to include both HTTP/HTTPS
+  - Updated failure reasons and retry strategy to transient/permanent classification
+- `docs/METHODOLOGY.md`
+  - Updated access method to HTTP+HTTPS
+  - Added explicit failure classification and retry semantics section
+- `docs/PROJECT_ANALYSIS.md`
+  - Replaced stale unrelated analysis with BDLawCorpus-specific implementation snapshot
+- `PRD.md`
+  - Updated FR-1 to hostname scope with both protocols
+  - Resolved FR-3 contradiction with queue-based processing
+  - Added FR-9 requirements for transient/permanent classification and retry constraints
 
-**bdlaw-extractor.js (3 bugs)**
-- BUG 7: `computeContentHash()` — removed `"sha256:"` prefix; now returns raw 64-char hex only
-- BUG 5: `_simpleHash()` — replaced 32-bit djb2 with `length_checksum` format
-- BUG 6: `extractWithRetry()` — removed no-op retry loop; returns terminal result directly
+### Implementation State Confirmed
+- `manifest.json` contains both protocol permissions and matches
+- `bdlaw-page-detector.js` accepts `http:` and `https:` via `ALLOWED_PROTOCOLS`
+- `bdlaw-queue.js` has:
+  - `ACT_NOT_FOUND`, `SITE_UNAVAILABLE`
+  - `TRANSIENT_FAILURES` / `PERMANENT_FAILURES`
+  - `classifyFailure()` and classification-driven `shouldRetry()`
+- `sidepanel.js` classifies error pages through `classifyErrorPageFailure()` and maps labels in UI
+- `bdlaw-extractor.js` has:
+  - protocol-aware URL normalization (`_normalizeUrl`, `_detectPreferredProtocol`)
+  - corrected hash behavior and simplified retry semantics
+  - corrected Bengali Unicode and mixed numeral regex patterns
 
-**bdlaw-storage.js (3 bugs)**
-- BUG 4: `loadAct()` — was a stub returning null; now dispatches to active backend (IndexedDB / ChromeStorageBackend / MemoryBackend)
-- BUG 8: `_getMemoryUsage()` — was iterating `this._memoryStore.acts` (always-empty Map); now reads from `MemoryBackend._acts/_receipts/_wal/_auditLog`
-- BUG 9: `_verifyChromeStorage()` — test key not cleaned up on failure paths; cleanup call added before each `reject()`
-
-**popup.html (1 bug)**
-- BUG 10: Removed `<script src="text-processor.js"></script>` (file does not exist in project)
-
-**bdlaw-queue.js (feature additions)**
-- Added `TRANSIENT_FAILURES` Set: NETWORK_ERROR, DOM_NOT_READY, DOM_TIMEOUT, NAVIGATION_ERROR, UNKNOWN_ERROR
-- Added `PERMANENT_FAILURES` Set: CONTENT_SELECTOR_MISMATCH, CONTAINER_NOT_FOUND, CONTENT_EMPTY, CONTENT_BELOW_THRESHOLD, EXTRACTION_ERROR
-- Both sets exposed on `BDLawQueue` object
-- Added `classifyFailure(reason)` method
-- Added `buildRetryQueue(failedExtractions, maxRetriesPerItem)` method returning `{ retryQueue, permanentFailures, stats }`
-
-## Key Decisions & Patterns
-
-- `content_hash` is always raw 64-char hex with no prefix — validated by `ExtractionReceipt.create()` regex `/^[a-fA-F0-9]{64}$/`
-- `_memoryStore` in `StorageManager` is a separate in-process cache; `MemoryBackend` holds the actual fallback storage
-- `shouldRetry()` handles immediate same-session retries with broader selectors — distinct from `buildRetryQueue()` which is for persistent cross-session retry
-- TRANSIENT failures = environmental/recoverable; PERMANENT = structural content issues that won't resolve on retry
-- `transient_exhausted` classification used when retry count has reached limit despite transient reason
+### Test Verification (already executed)
+- Targeted property suites passed:
+  - `domain.property.test.js`
+  - `page-type.property.test.js`
+  - `retry-mechanism-correctness.property.test.js`
+  - `url-normalization.property.test.js`
+- Result: **4 suites passed, 47 tests passed**.
 
 ## Next Steps
 
-- All code work complete
-- Memory bank documentation update (activeContext.md, progress.md) — in progress
+1. Finalize memory-bank updates (`progress.md`, `techContext.md`)
+2. Run final consistency checks
+3. Deliver completion summary.

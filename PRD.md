@@ -5,7 +5,7 @@
 
 ## 1. Product Overview
 
-BDLawCorpus is a purpose-built, research-grade Chrome extension designed to support the disciplined, manual extraction of publicly available Bangladeshi legal texts from the official website https://bdlaws.minlaw.gov.bd.
+BDLawCorpus is a purpose-built, research-grade Chrome extension designed to support the disciplined, manual extraction of publicly available Bangladeshi legal texts from the official website bdlaws.minlaw.gov.bd (HTTP and HTTPS).
 
 The product is intended exclusively for academic dataset construction in the fields of Digital Humanities, Legal Informatics, and Access to Information. It prioritizes transparency, reproducibility, and ethical data collection over speed or convenience.
 
@@ -41,7 +41,9 @@ Non-target users:
 
 ### FR-1: Domain Restriction
 
-The extension SHALL operate exclusively on: https://bdlaws.minlaw.gov.bd/
+The extension SHALL operate exclusively on hostname: `bdlaws.minlaw.gov.bd` using either:
+- `http://bdlaws.minlaw.gov.bd/*`
+- `https://bdlaws.minlaw.gov.bd/*`
 
 Extraction functionality SHALL be disabled on all other domains.
 
@@ -64,8 +66,9 @@ When the current page is the laws listing page (`laws-of-bangladesh.html`):
 ### FR-3: Act-by-Act Extraction Discipline
 
 - The extension SHALL extract content from only the currently open act page
-- The extension SHALL NOT provide batch or multi-page extraction
-- The extension SHALL require user confirmation before saving each act
+- The extension SHALL NOT autonomously crawl the website without explicit user initiation
+- Queue-based multi-page processing SHALL be available only after explicit user action in the side panel
+- The extension SHALL support preview-driven manual capture for single-act workflows
 - Filenames SHALL be unique and include act identifier and timestamp
 
 ---
@@ -136,6 +139,9 @@ Exports SHALL be blocked if any metadata field is missing.
 - The extension SHALL store extracted content in browser storage
 - The extension SHALL handle extraction errors gracefully and continue
 - The extension SHALL display a progress indicator during processing
+- The extension SHALL classify failures as transient or permanent using explicit reason codes
+- The extension SHALL retry only transient failures while below max retry attempts
+- The extension SHALL NOT retry permanent failures (e.g., confirmed non-existent acts)
 
 ---
 

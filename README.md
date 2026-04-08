@@ -2,6 +2,8 @@
 
 A browser-based archival snapshot tool for capturing DOM-rendered text from bdlaws.minlaw.gov.bd.
 
+Supports both `http://bdlaws.minlaw.gov.bd` and `https://bdlaws.minlaw.gov.bd` origins.
+
 ## Academic Positioning Statement
 
 BDLawCorpus is a browser-based archival system designed to capture and preserve browser-rendered legal texts from the official Bangladesh Laws website (bdlaws.minlaw.gov.bd) for academic research purposes. It provides a transparent, reproducible snapshot of DOM-parsed text as rendered at extraction time, with strict guarantees of content immutability, explicit trust boundaries, and zero legal inference. By separating canonical raw capture (`content_raw`) from all derived representations and documenting structural, numeric, and provenance limitations, BDLawCorpus positions itself as a digital humanities and legal informatics resource rather than an authoritative legal database. The project is intended to support exploratory research in corpus linguistics, information retrieval, and legal text analysis, while explicitly disallowing claims of legal validity, completeness, or Gazette equivalence.
@@ -142,6 +144,19 @@ The extension uses a durable persistence layer with crash-safe guarantees:
 - **Queue Reconstruction**: Recovers queue state from receipts after crashes
 - **Export Checkpoints**: Configurable prompts to export after N extractions (10-200)
 
+### Failure Taxonomy & Retry Policy
+
+Failed extractions are explicitly classified to avoid ambiguous retries:
+
+- **Permanent failures** (not retried):
+  - `ACT_NOT_FOUND` (non-existent/404 act pages)
+  - `CONTENT_SELECTOR_MISMATCH`, `CONTAINER_NOT_FOUND`, `CONTENT_EMPTY`, `CONTENT_BELOW_THRESHOLD`, `EXTRACTION_ERROR`
+- **Transient failures** (retryable, up to configured max attempts):
+  - `SITE_UNAVAILABLE` (downtime/5xx/network-like site failures)
+  - `NETWORK_ERROR`, `DOM_NOT_READY`, `DOM_TIMEOUT`, `NAVIGATION_ERROR`, `UNKNOWN_ERROR`
+
+The side panel also classifies browser error pages into `ACT_NOT_FOUND` vs `SITE_UNAVAILABLE` for consistent queue behavior.
+
 ### Audit Trail
 
 All storage operations are logged for research reproducibility:
@@ -193,7 +208,7 @@ All storage operations are logged for research reproducibility:
   "_metadata": {
     "schema_version": "3.1",
     "source": "bdlaws.minlaw.gov.bd",
-    "source_url": "http://bdlaws.minlaw.gov.bd/act-details-{ID}.html",
+    "source_url": "https://bdlaws.minlaw.gov.bd/act-details-{ID}.html",
     "scraped_at": "ISO8601 timestamp",
     "extracted_at": "ISO8601 timestamp",
     "scraping_method": "manual page-level extraction",

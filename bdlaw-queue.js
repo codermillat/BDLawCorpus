@@ -81,6 +81,8 @@ const FAILURE_REASONS = {
   CONTENT_EMPTY: 'content_empty',
   CONTENT_BELOW_THRESHOLD: 'content_below_threshold',
   CONTENT_SELECTOR_MISMATCH: 'content_selector_mismatch', // Requirements: 3.8, 3.9 - Page rendered but no legal content anchors detected
+  ACT_NOT_FOUND: 'act_not_found',
+  SITE_UNAVAILABLE: 'site_unavailable',
   DOM_TIMEOUT: 'dom_timeout',           // Legacy - kept for backward compatibility
   DOM_NOT_READY: 'dom_not_ready',       // DOM never became interactive within timeout
   NETWORK_ERROR: 'network_error',
@@ -100,6 +102,7 @@ const FAILURE_REASONS = {
  * These may resolve on a subsequent attempt (network recovery, DOM timeout).
  */
 const TRANSIENT_FAILURES = new Set([
+  FAILURE_REASONS.SITE_UNAVAILABLE,
   FAILURE_REASONS.NETWORK_ERROR,
   FAILURE_REASONS.DOM_NOT_READY,
   FAILURE_REASONS.DOM_TIMEOUT,
@@ -112,6 +115,7 @@ const TRANSIENT_FAILURES = new Set([
  * Retrying will not produce different results.
  */
 const PERMANENT_FAILURES = new Set([
+  FAILURE_REASONS.ACT_NOT_FOUND,
   FAILURE_REASONS.CONTENT_SELECTOR_MISMATCH,
   FAILURE_REASONS.CONTAINER_NOT_FOUND,
   FAILURE_REASONS.CONTENT_EMPTY,
@@ -712,8 +716,8 @@ const BDLawQueue = {
    * Requirements: 5.2, 5.5
    * 
    * RETRY POLICY:
-   * - ONLY retry content_selector_mismatch (recoverable with broader selectors)
-   * - Do NOT retry: network_error, dom_not_ready, dom_timeout, error pages
+   * - Retry only TRANSIENT failures while retry_count < max_retries
+   * - Never retry PERMANENT failures (e.g., act_not_found)
    * 
    * @param {Object} failedEntry - Failed extraction entry
    * @returns {boolean} True if retry is allowed
@@ -723,14 +727,8 @@ const BDLawQueue = {
     
     // Check retry count limit
     if (failedEntry.retry_count >= failedEntry.max_retries) return false;
-    
-    // ONLY retry content_selector_mismatch - other failures are not recoverable
-    const retryableReasons = [
-      FAILURE_REASONS.CONTENT_SELECTOR_MISMATCH,
-      FAILURE_REASONS.CONTAINER_NOT_FOUND  // Legacy - treat as selector mismatch
-    ];
-    
-    return retryableReasons.includes(failedEntry.failure_reason);
+
+    return this.classifyFailure(failedEntry.failure_reason) === 'transient';
   },
 
   /**

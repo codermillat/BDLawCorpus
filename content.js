@@ -132,7 +132,7 @@
 
   // Amendment markers for detecting deleted/modified provisions
   // Requirements: 25.1 - Detect Amendment_Markers in legal text
-  const BDLAW_AMENDMENT_MARKERS = ['বিলুপ্ত', 'সংশোধিত', 'প্রতিস্থাপিত'];
+  const BDLAW_AMENDMENT_MARKERS = ['বিলুপ্ত', 'সংশোধিত', 'প্রতিস্থাপিত', '[***]'];
 
   // UI noise patterns to filter from extracted content
   // Requirements: 28.1, 28.2, 28.3 - Content Noise Filtering
@@ -151,9 +151,9 @@
     ENGLISH_ACT_SHORT: /(?:Act|Ordinance)\s+([IVXLCDM]+|\d+)\s+of\s+(\d{4})/g,
     
     // Bengali patterns - Requirements: 2.1, 2.2, 2.3
-    BENGALI_ACT_FULL: /([^\s,।]+(?:\s+[^\s,।]+)*\s+আইন),?\s*([\u09E6-\u09EF]{4})\s*\(([\u09E6-\u09EF]{4})\s*সনের\s*([\u09E6-\u09EF]+)\s*নং\s*আইন\)/g,
-    BENGALI_ACT_SHORT: /([\u09E6-\u09EF]{4})\s*সনের\s*([\u09E6-\u09EF]+)\s*নং\s*(আইন|অধ্যাদেশ)/g,
-    BENGALI_ORDINANCE: /([^\s,।]+(?:\s+[^\s,।]+)*\s+অধ্যাদেশ),?\s*([\u09E6-\u09EF]{4})\s*\(অধ্যাদেশ\s*নং\s*([\u09E6-\u09EF]+),?\s*([\u09E6-\u09EF]{4})\)/g,
+    BENGALI_ACT_FULL: /([^\s,।]+(?:\s+[^\s,।]+)*\s+আইন),?\s*([\u09E6-\u09EF0-9]{4})\s*\(([\u09E6-\u09EF0-9]{4})\s*সনের\s*([\u09E6-\u09EF0-9]+)\s*নং\s*আইন\)/g,
+    BENGALI_ACT_SHORT: /([\u09E6-\u09EF0-9]{4})\s*সনের\s*([\u09E6-\u09EF0-9]+)\s*নং\s*(আইন|অধ্যাদেশ)/g,
+    BENGALI_ORDINANCE: /([^\s,।]+(?:\s+[^\s,।]+)*\s+অধ্যাদেশ),?\s*([\u09E6-\u09EF0-9]{4})\s*\(অধ্যাদেশ\s*নং\s*([\u09E6-\u09EF0-9]+),?\s*([\u09E6-\u09EF0-9]{4})\)/g,
     
     // President's Order pattern - Special reference type
     PRESIDENTS_ORDER: /P\.?O\.?\s*(?:No\.?)?\s*(\d+)\s+of\s+(\d{4})/gi
@@ -303,6 +303,38 @@
   // ============================================
   // Helper Functions
   // ============================================
+
+  /**
+   * Normalize a potentially relative bdlaws URL to absolute.
+   * Preserves protocol from the current page context when possible.
+   *
+   * @param {string} href
+   * @returns {string}
+   */
+  function bdlawNormalizeToAbsoluteUrl(href) {
+    if (!href || typeof href !== 'string') {
+      return '';
+    }
+
+    // Already absolute
+    if (/^https?:\/\//i.test(href)) {
+      return href;
+    }
+
+    // Protocol-relative URL
+    if (href.startsWith('//')) {
+      const protocol = (window.location && (window.location.protocol === 'http:' || window.location.protocol === 'https:'))
+        ? window.location.protocol
+        : 'http:';
+      return `${protocol}${href}`;
+    }
+
+    try {
+      return new URL(href, window.location.origin).href;
+    } catch (_) {
+      return href;
+    }
+  }
 
   /**
    * Detect extraction risks in the current document
@@ -2108,10 +2140,7 @@
       }
 
       // Build full URL if relative
-      let url = href;
-      if (!href.startsWith('http')) {
-        url = `http://bdlaws.minlaw.gov.bd/${href.replace(/^\//, '')}`;
-      }
+      let url = bdlawNormalizeToAbsoluteUrl(href);
 
       // Prefer act-details URL
       if (!url.includes('act-details')) {
@@ -2195,10 +2224,7 @@
       }
 
       // Build full URL if relative
-      let url = href;
-      if (!href.startsWith('http')) {
-        url = `http://bdlaws.minlaw.gov.bd/${href.replace(/^\//, '')}`;
-      }
+      let url = bdlawNormalizeToAbsoluteUrl(href);
 
       // Prefer act-details URL
       if (!url.includes('act-details')) {

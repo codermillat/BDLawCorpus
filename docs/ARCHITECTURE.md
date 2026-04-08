@@ -28,7 +28,7 @@ BDLawCorpus is a Chrome extension that captures browser-rendered DOM text from b
                               ▼
                     ┌──────────────────┐
                     │  bdlaws.minlaw.  │
-                    │   gov.bd (HTTP)  │
+                    │ gov.bd (HTTP/HTTPS)│
                     │                  │
                     │  [Source Pages]  │
                     └──────────────────┘
@@ -123,10 +123,11 @@ User Navigation          Content Script           Side Panel
 The extension enforces strict domain restriction:
 
 ```javascript
-ALLOWED_ORIGIN: 'http://bdlaws.minlaw.gov.bd'
+ALLOWED_HOSTNAME: 'bdlaws.minlaw.gov.bd'
+ALLOWED_PROTOCOLS: new Set(['http:', 'https:'])
 ```
 
-All extraction functionality is disabled on any other domain. This is enforced at multiple levels:
+All extraction functionality is disabled on any other hostname/protocol combination. This is enforced at multiple levels:
 1. Manifest host permissions
 2. Page detector validation
 3. Content script URL checks
@@ -251,7 +252,8 @@ In case of conflict, the following precedence order is used:
     "tabs"            // Tab navigation
   ],
   "host_permissions": [
-    "http://bdlaws.minlaw.gov.bd/*"  // Single domain only
+    "http://bdlaws.minlaw.gov.bd/*",
+    "https://bdlaws.minlaw.gov.bd/*"
   ]
 }
 ```
@@ -273,15 +275,24 @@ FAILURE_REASONS: {
   CONTENT_EMPTY,            // No text in container
   CONTENT_BELOW_THRESHOLD,  // Insufficient content
   CONTENT_SELECTOR_MISMATCH,// Page rendered, no legal anchors
-  DOM_NOT_READY,            // DOM timeout
-  NETWORK_ERROR,            // Navigation failed
-  EXTRACTION_ERROR          // Processing error
+  ACT_NOT_FOUND,            // Confirmed 404/non-existent act page
+  SITE_UNAVAILABLE,         // Site/network/downtime-like error page
+  DOM_NOT_READY,            // DOM did not become ready
+  DOM_TIMEOUT,              // Legacy timeout code (compatibility)
+  NETWORK_ERROR,            // Navigation/network failure
+  NAVIGATION_ERROR,         // Navigation operation failure
+  EXTRACTION_ERROR,         // Processing error
+  UNKNOWN_ERROR             // Unclassified error
 }
 ```
 
 ### Retry Strategy
 
-- Only `CONTENT_SELECTOR_MISMATCH` triggers retry
+- Failure classification is centralized in `bdlaw-queue.js`
+- `shouldRetry()` retries only **TRANSIENT** reasons and only while `retry_count < max_retries`
+- **TRANSIENT** reasons: `SITE_UNAVAILABLE`, `NETWORK_ERROR`, `DOM_NOT_READY`, `DOM_TIMEOUT`, `NAVIGATION_ERROR`, `UNKNOWN_ERROR`
+- **PERMANENT** reasons: `ACT_NOT_FOUND`, `CONTENT_SELECTOR_MISMATCH`, `CONTAINER_NOT_FOUND`, `CONTENT_EMPTY`, `CONTENT_BELOW_THRESHOLD`, `EXTRACTION_ERROR`
+- Side panel error-page detection classifies failures as `ACT_NOT_FOUND` (permanent) vs `SITE_UNAVAILABLE` (transient)
 - Exponential backoff: `base_delay * 2^(attempt-1)`
 - Maximum 3 retry attempts
 - Broader selectors used on retry

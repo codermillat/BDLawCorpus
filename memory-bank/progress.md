@@ -2,141 +2,70 @@
 
 ## Current Status
 
-**Phase:** Bug fixes complete — Failure classification redesign complete  
+**Phase:** Hardening + documentation synchronization complete for protocol/failure-taxonomy scope  
 **Corpus scope:** ~1,500+ Acts across 57 volumes (1799–2026)  
-**Extension:** Chrome MV3, 10 confirmed bugs fixed, retry queue added  
+**Extension:** Chrome MV3 with durable storage, classification-driven retry policy, and dual protocol support
 
 ---
 
 ## What Works
 
 - [x] Chrome extension loads and opens side panel
-- [x] Page type detection (`bdlaw-page-detector.js`) classifies volume pages vs act-detail pages
-- [x] Queue state machine (`bdlaw-queue.js`) tracks pending → processing → success/failed states
+- [x] Page type detection supports allowed hostname over both `http:` and `https:`
+- [x] Queue state machine tracks pending → processing → success/failed states
+- [x] Queue retry policy uses failure classification (`transient` vs `permanent`)
+- [x] Side panel error-page taxonomy distinguishes:
+  - [x] `ACT_NOT_FOUND` (permanent)
+  - [x] `SITE_UNAVAILABLE` (transient)
 - [x] IndexedDB storage initialization with fallback chain
-- [x] Write-ahead logging (WAL) structure exists in `bdlaw-storage.js`
-- [x] Extraction receipts (append-only) structure exists
-- [x] Audit log structure exists
-- [x] Export formatter (`bdlaw-export.js`) produces JSON with `failed_extractions` placeholder
-- [x] `formatFailedActForExport()` in `bdlaw-queue.js` includes failed acts in corpus output
-- [x] Metadata builder (`bdlaw-metadata.js`) generates act metadata
-- [x] DOM extraction via `element.textContent` (correct API used)
-- [x] Three-version content model (raw → normalized → corrected) structure defined
-- [x] All 100+ property-based tests exist in `tests/property/`
-- [x] Integration tests exist in `tests/integration/`
-- [x] Memory Bank fully initialized (6 core files created)
-- [x] **BUG 4 FIXED** — `StorageManager.loadAct()` dispatches to active backend
-- [x] **BUG 5 FIXED** — `_simpleHash()` uses `length_checksum` format
-- [x] **BUG 6 FIXED** — `extractWithRetry()` no-op loop removed
-- [x] **BUG 7 FIXED** — `computeContentHash()` returns raw 64-char hex (no prefix)
-- [x] **BUG 8 FIXED** — `_getMemoryUsage()` reads from `MemoryBackend._acts/_receipts/_wal/_auditLog`
-- [x] **BUG 9 FIXED** — `_verifyChromeStorage()` cleans up test key on all failure paths
-- [x] **BUG 10 FIXED** — Dead `text-processor.js` script tag removed from `popup.html`
-- [x] **TRANSIENT/PERMANENT classification added** — `TRANSIENT_FAILURES` and `PERMANENT_FAILURES` Sets in `bdlaw-queue.js`
-- [x] **`classifyFailure(reason)`** method added to `BDLawQueue`
-- [x] **`buildRetryQueue(failedExtractions, maxRetriesPerItem)`** method added to `BDLawQueue`
+- [x] Write-ahead logging (WAL) and extraction receipts
+- [x] Audit log structure and export hooks
+- [x] DOM extraction via `element.textContent` (canonical)
+- [x] Three-version content model (raw → normalized → corrected)
+- [x] `computeContentHash()` returns raw 64-char SHA-256 hex
+- [x] `_simpleHash()` uses `length_checksum` format
+- [x] URL normalization is protocol-aware (`_normalizeUrl` + `_detectPreferredProtocol`)
+- [x] Targeted property suites updated and passing:
+  - [x] domain property tests
+  - [x] page-type property tests
+  - [x] retry-mechanism correctness property tests
+  - [x] URL normalization property tests
 
 ---
 
-## Confirmed Bugs — Status
+## Recently Completed Work
 
-| Bug | File | Description | Status |
-|---|---|---|---|
-| BUG 1 | `bdlaw-extractor.js` | Bengali Unicode regex broken (`BENGALI_UNICODE_RANGE`) | ⚠️ Still open |
-| BUG 2 | `bdlaw-extractor.js` | `calculateLanguageDistribution()` uses broken regex | ⚠️ Still open |
-| BUG 3 | `bdlaw-extractor.js` | Bengali citation patterns broken (hyphen instead of numeral ranges) | ⚠️ Still open |
-| BUG 4 | `bdlaw-storage.js` | `StorageManager.loadAct()` stub returning null | ✅ Fixed |
-| BUG 5 | `bdlaw-extractor.js` | `_simpleHash()` weak 32-bit djb2 | ✅ Fixed |
-| BUG 6 | `bdlaw-extractor.js` | `extractWithRetry()` no-op retry loop | ✅ Fixed |
-| BUG 7 | `bdlaw-extractor.js` | `computeContentHash()` prefixed hash breaks receipt validation | ✅ Fixed |
-| BUG 8 | `bdlaw-storage.js` | `_getMemoryUsage()` reads empty Map | ✅ Fixed |
-| BUG 9 | `bdlaw-storage.js` | `_verifyChromeStorage()` test key leak on failure | ✅ Fixed |
-| BUG 10 | `popup.html` | Dead `text-processor.js` script reference | ✅ Fixed |
+### Failure Taxonomy + Retry Alignment
+- Added/confirmed failure reasons in queue flow including `ACT_NOT_FOUND` and `SITE_UNAVAILABLE`
+- Added/confirmed `TRANSIENT_FAILURES` and `PERMANENT_FAILURES` sets
+- `shouldRetry()` now classification-driven
+- Side panel integrated taxonomy-aware error-page classification in both normal queue and retry queue processing
 
-> **Note:** BUGs 1, 2, 3 involve Bengali Unicode regex ranges. The summary shows the regex bodies collapsed during context serialization. These require careful character-by-character editing to insert the correct U+0980–U+09FF codepoints. They are tracked as still open.
+### Protocol Hardening
+- Confirmed dual protocol support in manifest host permissions and content-script matches
+- Confirmed page detector supports both protocols on `bdlaws.minlaw.gov.bd`
+- Confirmed extractor URL normalization chooses protocol from context and falls back deterministically
 
----
-
-## Completed Enhancements
-
-### Failure Classification Redesign (`bdlaw-queue.js`) — COMPLETE
-- [x] `TRANSIENT_FAILURES` Set: `NETWORK_ERROR`, `DOM_NOT_READY`, `DOM_TIMEOUT`, `NAVIGATION_ERROR`, `UNKNOWN_ERROR`
-- [x] `PERMANENT_FAILURES` Set: `CONTENT_SELECTOR_MISMATCH`, `CONTAINER_NOT_FOUND`, `CONTENT_EMPTY`, `CONTENT_BELOW_THRESHOLD`, `EXTRACTION_ERROR`
-- [x] Both sets exposed on `BDLawQueue` object
-- [x] `classifyFailure(reason)` — returns `'transient'` or `'permanent'`
-- [x] `buildRetryQueue(failedExtractions, maxRetriesPerItem)` — returns `{ retryQueue, permanentFailures, stats }`
-- [x] `transient_exhausted` classification for transient failures that have hit the retry limit
+### Documentation Synchronization
+- Updated: `README.md`, `docs/ARCHITECTURE.md`, `docs/METHODOLOGY.md`, `docs/PROJECT_ANALYSIS.md`, `PRD.md`
+- Updated memory bank: `activeContext.md` (this file and `techContext.md` refreshed in this phase)
 
 ---
 
-## Pending Enhancements (Next Phase)
+## Open / Next Phase Items
 
-### Fix Remaining Open Bugs
-- [ ] BUG 1: Fix `BENGALI_UNICODE_RANGE` constant in `bdlaw-extractor.js`
-- [ ] BUG 2: Fix `calculateLanguageDistribution()` regex in `bdlaw-extractor.js`
-- [ ] BUG 3: Fix Bengali citation patterns in `bdlaw-extractor.js`
-
-### Persistent Retry Queue (`bdlaw-storage.js`)
-- [ ] `saveRetryQueue(queue)` — persist retry queue to IndexedDB
-- [ ] `loadRetryQueue()` — reload retry queue across sessions
-- [ ] `saveFailureLog(entries)` — persist permanent failure log
-- [ ] `loadFailureLog()` — load permanent failure log
-
-### Content Script Failure Detection (`content.js`)
-- [ ] Distinguish HTTP 404 from network timeout
-- [ ] Detect site unavailability patterns
-- [ ] Emit `site_unavailable` failure reason
-- [ ] Emit `act_not_found_404` for confirmed missing acts
-
-### UI Enhancements (`sidepanel.html` + `sidepanel.js`)
-- [ ] "Retry Failed Acts" button
-- [ ] Failure summary panel (transient vs permanent counts)
-- [ ] Per-act failure reason display
-- [ ] Retry progress tracking
-
-### Export Enhancement (`bdlaw-export.js`)
-- [ ] `failed_extractions` section split into `transient_failures[]` and `permanent_failures[]`
-- [ ] Summary with counts, timestamps, retry recommendations
-
-### Audit Log Completeness
-- [ ] Log entry for every failure classification decision
-- [ ] Log entry for every retry attempt
-- [ ] Log entry for retry queue build/clear events
+- [ ] Persistent retry queue persistence methods in `bdlaw-storage.js` (`saveRetryQueue`, `loadRetryQueue`, etc.)
+- [ ] Export-level split/reporting of transient vs permanent failed extractions in `bdlaw-export.js`
+- [ ] Additional audit-log completeness for classification and retry events
+- [ ] UI enhancements for richer failed-act summaries and retry controls
 
 ---
 
-## Evolution of Key Decisions
+## Verification Snapshot
 
-| Decision | Chosen Approach | Rationale |
-|---|---|---|
-| Bengali Unicode range | U+0980–U+09FF | Standard Unicode Bengali block |
-| Content_raw API | `element.textContent` only | `innerText` is layout-dependent |
-| Hash format | Raw 64-char hex, no prefix | Prefix breaks receipt validation regex |
-| Retry policy | TRANSIENT vs PERMANENT classification | Site downtime ≠ missing act |
-| `_simpleHash` replacement | `length + '_' + checksum` | Better collision resistance for immutability guard |
-| `extractWithRetry` | Remove loop, delay at queue level | Retrying same DOM state is a no-op |
-| Storage backend | IndexedDB primary, fallback chain | MV3 service workers are ephemeral |
-| `buildRetryQueue` vs `shouldRetry` | Two separate concerns | `shouldRetry` = same-session broader selector; `buildRetryQueue` = cross-session persistent retry |
-
----
-
-## Known Issues (Non-Bug)
-
-1. **Bengali schedule PDFs** — PDF content cannot be extracted via DOM; schedules are linked but not scraped
-2. **Site downtime** — bdlaws.minlaw.gov.bd has intermittent availability; primary motivation for retry queue
-3. **Volume 30+ Bengali titles** — Bengali-only titles require correct Unicode detection (blocked on BUG 1/2)
-4. **Act ID gaps** — Not all integer IDs between 1–1500 have corresponding pages; gap detection needed
-5. **Amendment footnotes** — `<sup>` markers captured in textContent but not parsed into structured amendment records
-
----
-
-## Files Requiring Further Changes
-
-| File | Changes Needed |
-|---|---|
-| `bdlaw-extractor.js` | BUGs 1, 2, 3 (Bengali Unicode regex) |
-| `bdlaw-storage.js` | Persistent retry queue methods |
-| `content.js` | Failure detection improvements |
-| `sidepanel.html` | Retry UI |
-| `sidepanel.js` | Retry logic |
-| `bdlaw-export.js` | Split failed_extractions section |
+- Latest targeted run result: **4 suites passed, 47 tests passed**
+- Suites:
+  - `tests/property/domain.property.test.js`
+  - `tests/property/page-type.property.test.js`
+  - `tests/property/retry-mechanism-correctness.property.test.js`
+  - `tests/property/url-normalization.property.test.js`

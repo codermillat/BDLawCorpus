@@ -9,9 +9,14 @@
 
 const BDLawPageDetector = {
   /**
-   * The only allowed origin for extraction
+   * The only allowed hostname for extraction
    */
-  ALLOWED_ORIGIN: 'http://bdlaws.minlaw.gov.bd',
+  ALLOWED_HOSTNAME: 'bdlaws.minlaw.gov.bd',
+
+  /**
+   * Supported protocols for extraction
+   */
+  ALLOWED_PROTOCOLS: new Set(['http:', 'https:']),
 
   /**
    * URL patterns for each page type
@@ -55,8 +60,9 @@ const BDLawPageDetector = {
       const normalizedUrl = url.startsWith('http') ? url : `http://${url}`;
       const urlObj = new URL(normalizedUrl);
       
-      // Check if the origin matches exactly (including protocol)
-      return url.startsWith(this.ALLOWED_ORIGIN);
+      // Accept only the exact hostname over http or https
+      return this.ALLOWED_PROTOCOLS.has(urlObj.protocol) &&
+             urlObj.hostname === this.ALLOWED_HOSTNAME;
     } catch (e) {
       return false;
     }
@@ -83,7 +89,8 @@ const BDLawPageDetector = {
     // Extract the path from the URL
     let path;
     try {
-      const urlObj = new URL(url);
+      const normalizedUrl = url.startsWith('http') ? url : `http://${url}`;
+      const urlObj = new URL(normalizedUrl);
       path = urlObj.pathname;
     } catch (e) {
       return this.PAGE_TYPES.UNSUPPORTED;

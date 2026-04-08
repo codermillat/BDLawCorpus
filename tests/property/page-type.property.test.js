@@ -11,7 +11,14 @@ const fc = require('fast-check');
 const BDLawPageDetector = require('../../bdlaw-page-detector.js');
 
 const ALLOWED_ORIGIN = 'http://bdlaws.minlaw.gov.bd';
+const ALLOWED_ORIGINS = [
+  ALLOWED_ORIGIN,
+  'https://bdlaws.minlaw.gov.bd'
+];
 const { PAGE_TYPES } = BDLawPageDetector;
+
+const allowedUrlArb = (path) =>
+  fc.constantFrom(...ALLOWED_ORIGINS).map(origin => `${origin}${path}`);
 
 describe('Property 2: Page Type Classification Determinism', () => {
   /**
@@ -21,12 +28,15 @@ describe('Property 2: Page Type Classification Determinism', () => {
   it('should return the same page type for the same URL (determinism)', () => {
     // Generate valid bdlaws URLs
     const bdlawsUrls = fc.oneof(
-      fc.constant(`${ALLOWED_ORIGIN}/laws-of-bangladesh.html`),
-      fc.constant(`${ALLOWED_ORIGIN}/laws-of-bangladesh-chronological-index.html`),
-      fc.constant(`${ALLOWED_ORIGIN}/laws-of-bangladesh-alphabetical-index.html`),
-      fc.nat({ max: 100 }).map(n => `${ALLOWED_ORIGIN}/volume-${n}.html`),
-      fc.nat({ max: 10000 }).map(n => `${ALLOWED_ORIGIN}/act-details-${n}.html`),
-      fc.nat({ max: 10000 }).map(n => `${ALLOWED_ORIGIN}/act-${n}.html`),
+      allowedUrlArb('/laws-of-bangladesh.html'),
+      allowedUrlArb('/laws-of-bangladesh-chronological-index.html'),
+      allowedUrlArb('/laws-of-bangladesh-alphabetical-index.html'),
+      fc.tuple(fc.constantFrom(...ALLOWED_ORIGINS), fc.nat({ max: 100 }))
+        .map(([origin, n]) => `${origin}/volume-${n}.html`),
+      fc.tuple(fc.constantFrom(...ALLOWED_ORIGINS), fc.nat({ max: 10000 }))
+        .map(([origin, n]) => `${origin}/act-details-${n}.html`),
+      fc.tuple(fc.constantFrom(...ALLOWED_ORIGINS), fc.nat({ max: 10000 }))
+        .map(([origin, n]) => `${origin}/act-${n}.html`),
       fc.webUrl()
     );
 
@@ -54,12 +64,15 @@ describe('Property 2: Page Type Classification Determinism', () => {
       fc.property(
         fc.oneof(
           fc.webUrl(),
-          fc.constant(`${ALLOWED_ORIGIN}/laws-of-bangladesh.html`),
-          fc.constant(`${ALLOWED_ORIGIN}/laws-of-bangladesh-chronological-index.html`),
-          fc.constant(`${ALLOWED_ORIGIN}/laws-of-bangladesh-alphabetical-index.html`),
-          fc.nat({ max: 100 }).map(n => `${ALLOWED_ORIGIN}/volume-${n}.html`),
-          fc.nat({ max: 10000 }).map(n => `${ALLOWED_ORIGIN}/act-details-${n}.html`),
-          fc.nat({ max: 10000 }).map(n => `${ALLOWED_ORIGIN}/act-${n}.html`),
+          allowedUrlArb('/laws-of-bangladesh.html'),
+          allowedUrlArb('/laws-of-bangladesh-chronological-index.html'),
+          allowedUrlArb('/laws-of-bangladesh-alphabetical-index.html'),
+          fc.tuple(fc.constantFrom(...ALLOWED_ORIGINS), fc.nat({ max: 100 }))
+            .map(([origin, n]) => `${origin}/volume-${n}.html`),
+          fc.tuple(fc.constantFrom(...ALLOWED_ORIGINS), fc.nat({ max: 10000 }))
+            .map(([origin, n]) => `${origin}/act-details-${n}.html`),
+          fc.tuple(fc.constantFrom(...ALLOWED_ORIGINS), fc.nat({ max: 10000 }))
+            .map(([origin, n]) => `${origin}/act-${n}.html`),
           fc.constant(null),
           fc.constant(undefined),
           fc.constant('')
@@ -170,13 +183,34 @@ describe('Property 3: Layer Detection Accuracy', () => {
    * Property: Non-bdlaws URLs should return INVALID_DOMAIN
    */
   it('should return INVALID_DOMAIN for non-bdlaws URLs', () => {
-    const nonBdlawsUrls = fc.webUrl().filter(url => !url.startsWith(ALLOWED_ORIGIN));
+    const nonBdlawsUrls = fc.webUrl().filter(url => !BDLawPageDetector.isAllowedDomain(url));
 
     fc.assert(
       fc.property(
         nonBdlawsUrls,
         (url) => {
           return BDLawPageDetector.detectPageType(url) === PAGE_TYPES.INVALID_DOMAIN;
+        }
+      ),
+      { numRuns: 100 }
+    );
+  });
+
+  it('should classify both http and https URLs consistently for equivalent paths', () => {
+    fc.assert(
+      fc.property(
+        fc.constantFrom(
+          '/laws-of-bangladesh.html',
+          '/laws-of-bangladesh-chronological-index.html',
+          '/laws-of-bangladesh-alphabetical-index.html',
+          '/volume-56.html',
+          '/act-details-1514.html',
+          '/act-1514.html'
+        ),
+        (path) => {
+          const httpType = BDLawPageDetector.detectPageType(`http://bdlaws.minlaw.gov.bd${path}`);
+          const httpsType = BDLawPageDetector.detectPageType(`https://bdlaws.minlaw.gov.bd${path}`);
+          return httpType === httpsType;
         }
       ),
       { numRuns: 100 }

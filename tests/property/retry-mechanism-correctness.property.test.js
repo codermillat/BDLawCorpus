@@ -8,8 +8,13 @@
  * Retry_count SHALL increment with each attempt. When retry_count >= max_retry_attempts,
  * the act SHALL be marked as permanently failed.
  * 
- * UPDATED: shouldRetry now also checks failure_reason - only content_selector_mismatch
- * and container_not_found are retryable. Other failures (network_error, dom_not_ready) are not.
+ * UPDATED: shouldRetry is classification-driven.
+ * Retry is allowed only when:
+ *   1) retry_count < max_retries
+ *   2) failure_reason is TRANSIENT (environmental/recoverable)
+ *
+ * TRANSIENT examples: site_unavailable, network_error, dom_not_ready
+ * PERMANENT examples: act_not_found, content_selector_mismatch
  * 
  * Validates: Requirements 5.2, 5.3, 5.4, 5.5
  */
@@ -20,10 +25,24 @@ const BDLawQueue = require('../../bdlaw-queue.js');
 describe('Feature: robust-queue-processing, Property 4: Retry Mechanism Correctness', () => {
   const { FAILURE_REASONS, QUEUE_CONFIG_DEFAULTS } = BDLawQueue;
 
-  // Retryable failure reasons
+  // Transient (retryable) failure reasons
   const RETRYABLE_REASONS = [
+    FAILURE_REASONS.SITE_UNAVAILABLE,
+    FAILURE_REASONS.NETWORK_ERROR,
+    FAILURE_REASONS.DOM_NOT_READY,
+    FAILURE_REASONS.DOM_TIMEOUT,
+    FAILURE_REASONS.NAVIGATION_ERROR,
+    FAILURE_REASONS.UNKNOWN_ERROR
+  ];
+
+  // Permanent (non-retryable) failure reasons
+  const NON_RETRYABLE_REASONS = [
+    FAILURE_REASONS.ACT_NOT_FOUND,
     FAILURE_REASONS.CONTENT_SELECTOR_MISMATCH,
-    FAILURE_REASONS.CONTAINER_NOT_FOUND
+    FAILURE_REASONS.CONTAINER_NOT_FOUND,
+    FAILURE_REASONS.CONTENT_EMPTY,
+    FAILURE_REASONS.CONTENT_BELOW_THRESHOLD,
+    FAILURE_REASONS.EXTRACTION_ERROR
   ];
 
   test('shouldRetry returns true when retry_count < max_retries AND failure is retryable', () => {
@@ -75,32 +94,39 @@ describe('Feature: robust-queue-processing, Property 4: Retry Mechanism Correctn
     // Undefined entry
     expect(BDLawQueue.shouldRetry(undefined)).toBe(false);
     
-    // Entry at exact max (with retryable reason)
+    // Entry at exact max (with retryable/transient reason)
     expect(BDLawQueue.shouldRetry({ 
       retry_count: 3, 
       max_retries: 3,
-      failure_reason: FAILURE_REASONS.CONTENT_SELECTOR_MISMATCH 
+      failure_reason: FAILURE_REASONS.SITE_UNAVAILABLE 
     })).toBe(false);
     
-    // Entry one below max (with retryable reason)
+    // Entry one below max (with retryable/transient reason)
     expect(BDLawQueue.shouldRetry({ 
       retry_count: 2, 
       max_retries: 3,
-      failure_reason: FAILURE_REASONS.CONTENT_SELECTOR_MISMATCH 
+      failure_reason: FAILURE_REASONS.SITE_UNAVAILABLE 
     })).toBe(true);
     
-    // Entry below max but with non-retryable reason
+    // Entry below max with transient reason is retryable
     expect(BDLawQueue.shouldRetry({ 
       retry_count: 0, 
       max_retries: 3,
       failure_reason: FAILURE_REASONS.NETWORK_ERROR 
-    })).toBe(false);
+    })).toBe(true);
     
-    // Entry below max but with dom_not_ready (not retryable)
+    // Entry below max with another transient reason remains retryable
     expect(BDLawQueue.shouldRetry({ 
       retry_count: 0, 
       max_retries: 3,
       failure_reason: FAILURE_REASONS.DOM_NOT_READY 
+    })).toBe(true);
+
+    // Entry below max but with permanent reason is never retryable
+    expect(BDLawQueue.shouldRetry({
+      retry_count: 0,
+      max_retries: 3,
+      failure_reason: FAILURE_REASONS.ACT_NOT_FOUND
     })).toBe(false);
   });
 
@@ -170,12 +196,12 @@ describe('Feature: robust-queue-processing, Property 4: Retry Mechanism Correctn
     
     let failedExtractions = [];
     
-    // Simulate multiple retry attempts with a RETRYABLE failure reason
+    // Simulate multiple retry attempts with a TRANSIENT failure reason
     for (let attempt = 1; attempt <= maxRetries + 1; attempt++) {
       failedExtractions = BDLawQueue.addFailedExtraction(
         failedExtractions,
         item,
-        FAILURE_REASONS.CONTENT_SELECTOR_MISMATCH, // Use retryable reason
+        FAILURE_REASONS.SITE_UNAVAILABLE, // transient reason
         attempt,
         maxRetries
       );
@@ -185,7 +211,7 @@ describe('Feature: robust-queue-processing, Property 4: Retry Mechanism Correctn
       // Verify retry_count matches attempt number
       expect(entry.retry_count).toBe(attempt);
       
-      // Verify shouldRetry logic - only true if below max AND retryable reason
+      // Verify shouldRetry logic - only true if below max AND transient reason
       if (attempt < maxRetries) {
         expect(BDLawQueue.shouldRetry(entry)).toBe(true);
       } else {
@@ -194,11 +220,11 @@ describe('Feature: robust-queue-processing, Property 4: Retry Mechanism Correctn
     }
   });
 
-  test('non-retryable failures are never retried regardless of retry_count', () => {
+  test('transient failures are retried while below max_retries', () => {
     const item = { id: 'test_1', actNumber: '123', url: 'http://test.com', title: 'Test' };
     const maxRetries = 3;
     
-    // Test with network_error - should never be retryable
+    // Test with network_error - transient, should be retryable below max
     const failedExtractions = BDLawQueue.addFailedExtraction(
       [],
       item,
@@ -209,7 +235,34 @@ describe('Feature: robust-queue-processing, Property 4: Retry Mechanism Correctn
     
     const entry = failedExtractions[0];
     expect(entry.retry_count).toBe(1);
-    expect(BDLawQueue.shouldRetry(entry)).toBe(false); // Not retryable even at retry_count 1
+    expect(BDLawQueue.shouldRetry(entry)).toBe(true);
+  });
+
+  test('permanent failures are never retried regardless of retry_count', () => {
+    const item = { id: 'test_1', actNumber: '123', url: 'http://test.com', title: 'Test' };
+    const maxRetries = 3;
+
+    const failedExtractions = BDLawQueue.addFailedExtraction(
+      [],
+      item,
+      FAILURE_REASONS.ACT_NOT_FOUND,
+      1,
+      maxRetries
+    );
+
+    const entry = failedExtractions[0];
+    expect(entry.retry_count).toBe(1);
+    expect(BDLawQueue.shouldRetry(entry)).toBe(false);
+  });
+
+  test('classifyFailure maps reasons to transient/permanent taxonomy', () => {
+    RETRYABLE_REASONS.forEach((reason) => {
+      expect(BDLawQueue.classifyFailure(reason)).toBe('transient');
+    });
+
+    NON_RETRYABLE_REASONS.forEach((reason) => {
+      expect(BDLawQueue.classifyFailure(reason)).toBe('permanent');
+    });
   });
 
   test('permanently failed acts have retry_count >= max_retries', () => {

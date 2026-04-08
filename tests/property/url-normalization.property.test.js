@@ -4,15 +4,16 @@
  * Feature: bdlawcorpus-mode, Property 15: URL Normalization
  * Validates: Requirements 22.5
  * 
- * Property: For any relative URL extracted from a Volume DataTable, the normalizer 
- * SHALL produce an absolute URL starting with http://bdlaws.minlaw.gov.bd/
+ * Property: For any relative URL extracted from a Volume DataTable, the normalizer
+ * SHALL produce an absolute URL on bdlaws.minlaw.gov.bd with protocol-aware handling.
  */
 
 const fc = require('fast-check');
 const BDLawExtractor = require('../../bdlaw-extractor.js');
 
 describe('Property 15: URL Normalization', () => {
-  const BASE_URL = 'http://bdlaws.minlaw.gov.bd';
+  const HTTP_BASE_URL = 'http://bdlaws.minlaw.gov.bd';
+  const HTTPS_BASE_URL = 'https://bdlaws.minlaw.gov.bd';
 
   /**
    * Generator for relative URL paths (without leading slash)
@@ -37,7 +38,7 @@ describe('Property 15: URL Normalization', () => {
         relativePathArb,
         (path) => {
           const result = BDLawExtractor._normalizeUrl(path);
-          return result.startsWith(BASE_URL + '/');
+          return result.startsWith(HTTP_BASE_URL + '/');
         }
       ),
       { numRuns: 100 }
@@ -54,7 +55,7 @@ describe('Property 15: URL Normalization', () => {
         absolutePathArb,
         (path) => {
           const result = BDLawExtractor._normalizeUrl(path);
-          return result.startsWith(BASE_URL);
+          return result.startsWith(HTTP_BASE_URL);
         }
       ),
       { numRuns: 100 }
@@ -96,16 +97,15 @@ describe('Property 15: URL Normalization', () => {
   });
 
   /**
-   * Property: Normalized URLs should always start with http://bdlaws.minlaw.gov.bd
-   * for relative inputs
+   * Property: In non-browser/test context, relative inputs default to HTTP base URL
    */
-  it('should always produce URLs starting with http://bdlaws.minlaw.gov.bd for relative inputs', () => {
+  it('should default to HTTP for relative inputs without protocol context', () => {
     fc.assert(
       fc.property(
         fc.oneof(relativePathArb, absolutePathArb),
         (path) => {
           const result = BDLawExtractor._normalizeUrl(path);
-          return result.startsWith(BASE_URL);
+          return result.startsWith(HTTP_BASE_URL);
         }
       ),
       { numRuns: 100 }
@@ -113,7 +113,7 @@ describe('Property 15: URL Normalization', () => {
   });
 
   /**
-   * Property: Normalized URLs should not have double slashes (except in protocol)
+   * Property: Normalized URLs should not have double slashes in path (except protocol)
    */
   it('should not produce double slashes in path (except protocol)', () => {
     fc.assert(
@@ -122,7 +122,7 @@ describe('Property 15: URL Normalization', () => {
         (path) => {
           const result = BDLawExtractor._normalizeUrl(path);
           // Remove protocol part and check for double slashes
-          const pathPart = result.replace('http://', '');
+          const pathPart = result.replace(/^https?:\/\//, '');
           return !pathPart.includes('//');
         }
       ),
@@ -156,6 +156,37 @@ describe('Property 15: URL Normalization', () => {
     );
   });
 
+  it('should use HTTPS when context document protocol is https', () => {
+    fc.assert(
+      fc.property(
+        fc.oneof(relativePathArb, absolutePathArb),
+        (path) => {
+          const contextDocument = { location: { protocol: 'https:' } };
+          const result = BDLawExtractor._normalizeUrl(path, contextDocument);
+          return result.startsWith(HTTPS_BASE_URL);
+        }
+      ),
+      { numRuns: 100 }
+    );
+  });
+
+  it('should normalize protocol-relative URLs using detected protocol', () => {
+    const protocolRelativePathArb = relativePathArb.map(path => `//bdlaws.minlaw.gov.bd/${path}`);
+
+    fc.assert(
+      fc.property(
+        protocolRelativePathArb,
+        (href) => {
+          const httpResult = BDLawExtractor._normalizeUrl(href, { location: { protocol: 'http:' } });
+          const httpsResult = BDLawExtractor._normalizeUrl(href, { location: { protocol: 'https:' } });
+
+          return httpResult.startsWith(HTTP_BASE_URL) && httpsResult.startsWith(HTTPS_BASE_URL);
+        }
+      ),
+      { numRuns: 100 }
+    );
+  });
+
   /**
    * Property: Specific act URL patterns should be normalized correctly
    */
@@ -170,6 +201,20 @@ describe('Property 15: URL Normalization', () => {
 
     testCases.forEach(({ input, expected }) => {
       expect(BDLawExtractor._normalizeUrl(input)).toBe(expected);
+    });
+  });
+
+  it('should preserve relative-path normalization under HTTPS context for act URL patterns', () => {
+    const contextDocument = { location: { protocol: 'https:' } };
+    const testCases = [
+      { input: '/act-1514.html', expected: 'https://bdlaws.minlaw.gov.bd/act-1514.html' },
+      { input: 'act-1514.html', expected: 'https://bdlaws.minlaw.gov.bd/act-1514.html' },
+      { input: '/act-details-1514.html', expected: 'https://bdlaws.minlaw.gov.bd/act-details-1514.html' },
+      { input: 'act-details-1514.html', expected: 'https://bdlaws.minlaw.gov.bd/act-details-1514.html' }
+    ];
+
+    testCases.forEach(({ input, expected }) => {
+      expect(BDLawExtractor._normalizeUrl(input, contextDocument)).toBe(expected);
     });
   });
 });

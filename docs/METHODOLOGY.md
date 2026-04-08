@@ -12,7 +12,7 @@ BDLawCorpus employs a manual, browser-based extraction workflow to capture DOM-r
 
 **Primary Source**: bdlaws.minlaw.gov.bd  
 **Source Type**: Official government website, Ministry of Law and Justice, Bangladesh  
-**Access Method**: HTTP (unencrypted)  
+**Access Method**: HTTP and HTTPS (browser-rendered pages; extension accepts both protocols on the same host)  
 **Content Type**: Browser-rendered HTML pages
 
 ## Extraction Method
@@ -122,7 +122,21 @@ For corpus construction:
 3. User initiates queue processing
 4. System navigates to each act page sequentially
 5. User-configured delay between extractions (default: 3 seconds)
-6. Failed extractions are logged and optionally retried
+6. Failed extractions are logged with explicit reason codes and classification
+7. Only transient failures are retried (up to configured max attempts with exponential backoff)
+
+### Failure Classification and Retry Semantics
+
+The methodology distinguishes between **transient** and **permanent** extraction failures:
+
+- **Permanent failures** (not retried):
+  - `act_not_found` (confirmed missing/non-existent act page)
+  - content-structure failures such as `content_selector_mismatch`, `container_not_found`, `content_empty`, `content_below_threshold`, `extraction_error`
+- **Transient failures** (retry-eligible):
+  - `site_unavailable` (downtime, 5xx-like, or browser error-page indicators)
+  - `network_error`, `dom_not_ready`, `dom_timeout`, `navigation_error`, `unknown_error`
+
+This separation reduces false retries for structurally missing content while preserving resilience against temporary network/site instability.
 
 ### Quality Control
 

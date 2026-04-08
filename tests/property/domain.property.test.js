@@ -4,29 +4,33 @@
  * Feature: bdlawcorpus-mode, Property 1: Domain Restriction Enforcement
  * Validates: Requirements 1.1, 1.2
  * 
- * Property: For any URL string, the page detector SHALL return 
- * isAllowedDomain() = true if and only if the URL starts with 
- * http://bdlaws.minlaw.gov.bd/
+ * Property: For any URL string, the page detector SHALL return
+ * isAllowedDomain() = true if and only if the URL uses http or https
+ * on bdlaws.minlaw.gov.bd
  */
 
 const fc = require('fast-check');
 const BDLawPageDetector = require('../../bdlaw-page-detector.js');
 
 describe('Property 1: Domain Restriction Enforcement', () => {
-  const ALLOWED_ORIGIN = 'http://bdlaws.minlaw.gov.bd';
+  const ALLOWED_ORIGINS = [
+    'http://bdlaws.minlaw.gov.bd',
+    'https://bdlaws.minlaw.gov.bd'
+  ];
 
   /**
    * Property: URLs starting with the allowed origin should return true
    */
-  it('should return true for any URL starting with http://bdlaws.minlaw.gov.bd/', () => {
+  it('should return true for any URL on allowed http/https origin', () => {
     fc.assert(
       fc.property(
+        fc.constantFrom(...ALLOWED_ORIGINS),
         // Generate random valid paths
         fc.stringOf(fc.constantFrom(
           'a', 'b', 'c', '1', '2', '3', '-', '_', '/', '.', 'html'
         ), { minLength: 1, maxLength: 50 }),
-        (path) => {
-          const url = `${ALLOWED_ORIGIN}/${path}`;
+        (origin, path) => {
+          const url = `${origin}/${path}`;
           return BDLawPageDetector.isAllowedDomain(url) === true;
         }
       ),
@@ -37,12 +41,13 @@ describe('Property 1: Domain Restriction Enforcement', () => {
   /**
    * Property: URLs NOT starting with the allowed origin should return false
    */
-  it('should return false for any URL not starting with http://bdlaws.minlaw.gov.bd/', () => {
+  it('should return false for URLs outside allowed domain/protocol combinations', () => {
     // Generate various non-matching domains
     const otherDomains = fc.oneof(
       fc.constant('http://example.com'),
-      fc.constant('https://bdlaws.minlaw.gov.bd'),  // HTTPS instead of HTTP
+      fc.constant('ftp://bdlaws.minlaw.gov.bd'),
       fc.constant('http://www.bdlaws.minlaw.gov.bd'),  // www subdomain
+      fc.constant('https://www.bdlaws.minlaw.gov.bd'),
       fc.constant('http://bdlaws.gov.bd'),
       fc.constant('http://minlaw.gov.bd'),
       fc.constant('https://google.com'),
@@ -55,8 +60,8 @@ describe('Property 1: Domain Restriction Enforcement', () => {
       fc.property(
         otherDomains,
         (url) => {
-          // Skip if the random URL happens to match our allowed origin
-          if (url.startsWith(ALLOWED_ORIGIN)) {
+          // Skip if the random URL happens to match one of our allowed origins
+          if (BDLawPageDetector.isAllowedDomain(url)) {
             return true;  // Skip this case
           }
           return BDLawPageDetector.isAllowedDomain(url) === false;

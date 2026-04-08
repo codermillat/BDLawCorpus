@@ -2205,13 +2205,14 @@
         // Chrome forbids script injection into error pages
         const tabInfo = await chrome.tabs.get(tab.id);
         if (isErrorPage(tabInfo)) {
-          console.warn(`Act ${item.actNumber} returned error page (URL may not exist): ${tabInfo.url}`);
+          const errorReason = classifyErrorPageFailure(tabInfo) || FAILURE_REASONS.SITE_UNAVAILABLE;
+          console.warn(`Act ${item.actNumber} returned error page (${errorReason}): ${tabInfo.url}`);
           item.status = 'error';
-          item.error = FAILURE_REASONS.NETWORK_ERROR;
+          item.error = errorReason;
           state.failedExtractions = BDLawQueue.addFailedExtraction(
             state.failedExtractions,
             item,
-            FAILURE_REASONS.NETWORK_ERROR,
+            errorReason,
             1,
             config.max_retry_attempts
           );
@@ -2458,8 +2459,10 @@
         // FIX: Detect error pages BEFORE attempting script injection
         const tabInfo = await chrome.tabs.get(tab.id);
         if (isErrorPage(tabInfo)) {
-          console.warn(`Retry for act ${failedEntry.act_number} returned error page (URL may not exist): ${tabInfo.url}`);
-          // Do NOT retry error pages - mark as network_error and move on
+          const errorReason = classifyErrorPageFailure(tabInfo) || FAILURE_REASONS.SITE_UNAVAILABLE;
+          console.warn(`Retry for act ${failedEntry.act_number} returned error page (${errorReason}): ${tabInfo.url}`);
+          // Classify error pages explicitly as ACT_NOT_FOUND (permanent)
+          // or SITE_UNAVAILABLE (transient), then move on.
           state.failedExtractions = BDLawQueue.addFailedExtraction(
             state.failedExtractions,
             { 
@@ -2469,7 +2472,7 @@
               title: failedEntry.title,
               selector_strategy: selectorStrategy
             },
-            FAILURE_REASONS.NETWORK_ERROR,
+            errorReason,
             attemptNumber,
             config.max_retry_attempts
           );
@@ -2653,43 +2656,86 @@
   }
 
   /**
+   * Classify tab error page into failure taxonomy.
+   * Returns:
+   * - FAILURE_REASONS.ACT_NOT_FOUND (permanent)
+   * - FAILURE_REASONS.SITE_UNAVAILABLE (transient)
+   * - null when tab does not look like an error page
+   *
+   * @param {Object} tabInfo - Chrome tab info object from chrome.tabs.get()
+   * @returns {string|null}
+   */
+  function classifyErrorPageFailure(tabInfo) {
+    const { FAILURE_REASONS } = BDLawQueue;
+
+    if (!tabInfo) return FAILURE_REASONS.SITE_UNAVAILABLE;
+
+    const rawUrl = tabInfo.url || '';
+    const rawTitle = tabInfo.title || '';
+    const url = rawUrl.toLowerCase();
+    const title = rawTitle.toLowerCase();
+
+    // Empty/blank pages typically indicate load/network failures.
+    if (url === '' || url === 'about:blank') {
+      return FAILURE_REASONS.SITE_UNAVAILABLE;
+    }
+
+    // Chrome internal error pages are always transient/unavailable conditions.
+    if (url.startsWith('chrome-error://') || url.startsWith('chrome://')) {
+      return FAILURE_REASONS.SITE_UNAVAILABLE;
+    }
+
+    const notFoundPatterns = [
+      /\b404\b/i,
+      /not found/i,
+      /page not found/i,
+      /does not exist/i,
+      /no such/i
+    ];
+
+    const unavailablePatterns = [
+      /\b500\b/i,
+      /\b502\b/i,
+      /\b503\b/i,
+      /\b504\b/i,
+      /server error/i,
+      /service unavailable/i,
+      /bad gateway/i,
+      /gateway timeout/i,
+      /connection refused/i,
+      /temporarily unavailable/i,
+      /timeout/i,
+      /timed out/i,
+      /err_/i,
+      /dns_probe/i,
+      /internet disconnected/i
+    ];
+
+    if (notFoundPatterns.some((pattern) => pattern.test(title) || pattern.test(url))) {
+      return FAILURE_REASONS.ACT_NOT_FOUND;
+    }
+
+    if (unavailablePatterns.some((pattern) => pattern.test(title) || pattern.test(url))) {
+      return FAILURE_REASONS.SITE_UNAVAILABLE;
+    }
+
+    // Generic title "error" is treated as availability issue by default.
+    if (/\berror\b/i.test(title)) {
+      return FAILURE_REASONS.SITE_UNAVAILABLE;
+    }
+
+    return null;
+  }
+
+  /**
    * Detect if a tab is showing an error page
-   * Chrome forbids script injection into error pages (chrome-error://, 404, etc.)
-   * 
+   * Chrome forbids script injection into error pages (chrome-error://, HTTP error pages, etc.)
+   *
    * @param {Object} tabInfo - Chrome tab info object from chrome.tabs.get()
    * @returns {boolean} True if tab is showing an error page
    */
   function isErrorPage(tabInfo) {
-    if (!tabInfo) return true;
-    
-    const url = tabInfo.url || '';
-    const title = tabInfo.title || '';
-    
-    // Chrome internal error pages
-    if (url.startsWith('chrome-error://')) return true;
-    if (url.startsWith('chrome://')) return true;
-    
-    // Common HTTP error indicators in title
-    const errorTitlePatterns = [
-      /404/i,
-      /not found/i,
-      /error/i,
-      /500/i,
-      /503/i,
-      /502/i,
-      /server error/i,
-      /connection refused/i,
-      /err_/i
-    ];
-    
-    for (const pattern of errorTitlePatterns) {
-      if (pattern.test(title)) return true;
-    }
-    
-    // Empty or about:blank pages
-    if (url === '' || url === 'about:blank') return true;
-    
-    return false;
+    return classifyErrorPageFailure(tabInfo) !== null;
   }
 
   // ============================================
@@ -5055,7 +5101,11 @@
       [FAILURE_REASONS.CONTAINER_NOT_FOUND]: 'Content container not found',
       [FAILURE_REASONS.CONTENT_EMPTY]: 'Empty content',
       [FAILURE_REASONS.CONTENT_BELOW_THRESHOLD]: 'Content too short',
+      [FAILURE_REASONS.CONTENT_SELECTOR_MISMATCH]: 'Legal content anchors not found',
+      [FAILURE_REASONS.ACT_NOT_FOUND]: 'Act page not found (404/non-existent act)',
+      [FAILURE_REASONS.SITE_UNAVAILABLE]: 'Site unavailable (transient downtime/network)',
       [FAILURE_REASONS.DOM_TIMEOUT]: 'Page load timeout',
+      [FAILURE_REASONS.DOM_NOT_READY]: 'DOM not ready',
       [FAILURE_REASONS.NETWORK_ERROR]: 'Network error',
       [FAILURE_REASONS.NAVIGATION_ERROR]: 'Navigation error',
       [FAILURE_REASONS.EXTRACTION_ERROR]: 'Extraction error',

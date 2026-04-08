@@ -1204,7 +1204,7 @@ const BDLawExtractor = {
    * - সংশোধিত (amended)
    * - প্রতিস্থাপিত (substituted)
    */
-  AMENDMENT_MARKERS: ['বিলুপ্ত', 'সংশোধিত', 'প্রতিস্থাপিত'],
+  AMENDMENT_MARKERS: ['বিলুপ্ত', 'সংশোধিত', 'প্রতিস্থাপিত', '[***]'],
 
   /**
    * Cross-reference citation patterns for detecting references to other acts
@@ -1229,9 +1229,9 @@ const BDLawExtractor = {
     ENGLISH_ACT_SHORT: /(?:Act|Ordinance)\s+([IVXLCDM]+|\d+)\s+of\s+(\d{4})/g,
     
     // Bengali patterns - Requirements: 2.1, 2.2, 2.3
-    BENGALI_ACT_FULL: /([^\s,।]+(?:\s+[^\s,।]+)*\s+আইন),?\s*([\u09E6-\u09EF]{4})\s*\(([\u09E6-\u09EF]{4})\s*সনের\s*([\u09E6-\u09EF]+)\s*নং\s*আইন\)/g,
-    BENGALI_ACT_SHORT: /([\u09E6-\u09EF]{4})\s*সনের\s*([\u09E6-\u09EF]+)\s*নং\s*(আইন|অধ্যাদেশ)/g,
-    BENGALI_ORDINANCE: /([^\s,।]+(?:\s+[^\s,।]+)*\s+অধ্যাদেশ),?\s*([\u09E6-\u09EF]{4})\s*\(অধ্যাদেশ\s*নং\s*([\u09E6-\u09EF]+),?\s*([\u09E6-\u09EF]{4})\)/g,
+    BENGALI_ACT_FULL: /([^\s,।]+(?:\s+[^\s,।]+)*\s+আইন),?\s*([\u09E6-\u09EF0-9]{4})\s*\(([\u09E6-\u09EF0-9]{4})\s*সনের\s*([\u09E6-\u09EF0-9]+)\s*নং\s*আইন\)/g,
+    BENGALI_ACT_SHORT: /([\u09E6-\u09EF0-9]{4})\s*সনের\s*([\u09E6-\u09EF0-9]+)\s*নং\s*(আইন|অধ্যাদেশ)/g,
+    BENGALI_ORDINANCE: /([^\s,।]+(?:\s+[^\s,।]+)*\s+অধ্যাদেশ),?\s*([\u09E6-\u09EF0-9]{4})\s*\(অধ্যাদেশ\s*নং\s*([\u09E6-\u09EF0-9]+),?\s*([\u09E6-\u09EF0-9]{4})\)/g,
     
     // President's Order pattern - Special reference type
     PRESIDENTS_ORDER: /P\.?O\.?\s*(?:No\.?)?\s*(\d+)\s+of\s+(\d{4})/gi
@@ -1841,11 +1841,8 @@ const BDLawExtractor = {
         year = yearMatch[1];
       }
 
-      // Build full URL if relative
-      let url = href;
-      if (!href.startsWith('http')) {
-        url = `http://bdlaws.minlaw.gov.bd/${href.replace(/^\//, '')}`;
-      }
+      // Build full URL if relative (protocol-aware)
+      let url = this._normalizeUrl(href, document);
 
       // Prefer act-details URL
       if (!url.includes('act-details')) {
@@ -1909,7 +1906,7 @@ const BDLawExtractor = {
 
       // Normalize relative URL to absolute
       // Requirements: 22.5 - Normalize relative URLs to absolute with bdlaws.minlaw.gov.bd domain
-      const url = this._normalizeUrl(href);
+      const url = this._normalizeUrl(href, document);
 
       acts.push({
         id,
@@ -1928,9 +1925,10 @@ const BDLawExtractor = {
    * Requirements: 22.5 - Normalize relative URLs to absolute
    * 
    * @param {string} href - The URL to normalize (may be relative or absolute)
-   * @returns {string} Absolute URL with http://bdlaws.minlaw.gov.bd domain
+   * @param {Document} [contextDocument] - Optional document for protocol detection
+   * @returns {string} Absolute URL with protocol-aware bdlaws.minlaw.gov.bd domain
    */
-  _normalizeUrl(href) {
+  _normalizeUrl(href, contextDocument = null) {
     if (!href || typeof href !== 'string') {
       return '';
     }
@@ -1940,14 +1938,42 @@ const BDLawExtractor = {
       return href;
     }
 
-    // Relative URL - normalize to absolute
-    const baseUrl = 'http://bdlaws.minlaw.gov.bd';
+    // Protocol-relative URL
+    if (href.startsWith('//')) {
+      return `${this._detectPreferredProtocol(contextDocument)}${href}`;
+    }
+
+    // Relative URL - normalize to absolute using preferred protocol
+    const baseUrl = `${this._detectPreferredProtocol(contextDocument)}//bdlaws.minlaw.gov.bd`;
     
     if (href.startsWith('/')) {
       return `${baseUrl}${href}`;
     }
     
     return `${baseUrl}/${href}`;
+  },
+
+  /**
+   * Detect preferred protocol (http/https) from available context.
+   * Falls back to http: for non-browser/test environments.
+   *
+   * @param {Document} [contextDocument]
+   * @returns {'http:'|'https:'}
+   */
+  _detectPreferredProtocol(contextDocument = null) {
+    const candidates = [
+      contextDocument?.location?.protocol,
+      (typeof window !== 'undefined' ? window.location?.protocol : null),
+      (typeof globalThis !== 'undefined' ? globalThis.location?.protocol : null)
+    ];
+
+    for (const protocol of candidates) {
+      if (protocol === 'http:' || protocol === 'https:') {
+        return protocol;
+      }
+    }
+
+    return 'http:';
   },
 
   /**

@@ -15,7 +15,8 @@
     "alarms"
   ],
   "host_permissions": [
-    "http://bdlaws.minlaw.gov.bd/*"
+    "http://bdlaws.minlaw.gov.bd/*",
+    "https://bdlaws.minlaw.gov.bd/*"
   ],
   "action": {
     "default_title": "BDLawCorpus - Open Side Panel",
@@ -31,7 +32,10 @@
   },
   "content_scripts": [
     {
-      "matches": ["http://bdlaws.minlaw.gov.bd/*"],
+      "matches": [
+        "http://bdlaws.minlaw.gov.bd/*",
+        "https://bdlaws.minlaw.gov.bd/*"
+      ],
       "js": ["bdlaw-quality.js", "content.js"],
       "run_at": "document_end",
       "all_frames": false

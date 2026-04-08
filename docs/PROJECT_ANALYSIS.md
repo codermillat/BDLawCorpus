@@ -1,49 +1,71 @@
-# Web Text Extractor: Project Analysis
+# BDLawCorpus: Project Analysis
 
-This document provides a factual analysis of the Web Text Extractor extension, based on a line-by-line review of its codebase as of August 2025. It outlines the project's current status, scope, and key architectural observations.
+This document provides a factual implementation snapshot of BDLawCorpus as currently shipped in this repository.
 
-## 1. Current Development Status
+## 1) Project Position and Scope
 
-The project is in a mature and functional state. The core features are implemented and the application is stable.
+BDLawCorpus is a Manifest V3 Chrome extension for **manual, research-oriented** extraction of legal text from `bdlaws.minlaw.gov.bd`. It is intentionally constrained to archival capture of browser-rendered DOM text (`textContent`) and does not attempt legal interpretation.
 
-*   **Core Functionality (Implemented):**
-    *   Text extraction from standard HTML pages.
-    *   Text extraction from PDF files, handled via an offscreen document.
-    *   A comprehensive text processing pipeline (`text-processor.js`) for cleaning and structuring data.
-    *   An in-page Sider UI (`content.js`) for managing captured data directly on the webpage.
-    *   A main popup UI (`popup.js`) for user interaction and configuration.
-    *   An options page (`options.js`) for advanced settings.
-    *   The extension is built on Manifest V3, ensuring adherence to modern browser security and performance standards.
+### In Scope
+- Manual capture of volume indexes and act detail pages
+- Queue-based batch processing after explicit user initiation
+- Durable local persistence (IndexedDB-first with fallback chain)
+- Corpus export with provenance and integrity metadata
+- Explicit failure reporting for unsuccessful extractions
 
-*   **Data Collection (Complete):**
-    *   The `outputs/` directory contains a substantial amount of raw data collected from the target university and government websites.
+### Out of Scope
+- Autonomous crawling without user initiation
+- Legal validity inference or legal-effect reasoning
+- Gazette reconstruction
+- External data transmission/remote processing
 
-*   **Documentation (Complete):**
-    *   The project includes a `README.md`, a `privacy-policy.md`, and this `docs/` directory containing detailed analyses of the project's architecture and pipeline.
+## 2) Current Architecture and Workflow
 
-## 2. Scope of the Project
+The extension is centered on:
+- `content.js` for page-side extraction and readiness signaling
+- `sidepanel.js` for queue orchestration and user workflow
+- `bdlaw-queue.js` for queue state, failure taxonomy, and retry policy
+- `bdlaw-storage.js` for durable persistence and recovery
+- `bdlaw-export.js` for corpus export formatting
 
-The project's primary scope is to serve as a data collection and preprocessing tool for a specific research initiative.
+Queue flow is deterministic: pending → processing → success/failed, with failed entries preserved and classifiable for retry eligibility.
 
-*   **In Scope:**
-    *   Extracting and cleaning text from the public-facing websites of four target universities (Sharda, NIU, Amity, Galgotias) and relevant government portals.
-    *   Handling dynamic webpage elements (lazy-loading, tabs, etc.) to ensure comprehensive data capture.
-    *   Processing the raw text to remove noise and structure it into a clean, usable format for the next stage of the research pipeline (Q&A pair generation).
-    *   Ensuring user privacy by performing all core operations locally on the user's machine.
+## 3) Hardening Status (Implemented)
 
-*   **Out of Scope:**
-    *   Bypassing any form of authentication (logins, paywalls).
-    *   Scraping content that is not publicly accessible.
-    *   Direct integration with LLM APIs for real-time analysis (the extension prepares data *for* LLMs, but does not interact with them).
+### 3.1 Dual protocol support (HTTP + HTTPS)
+Support is now consistent across:
+- `manifest.json` host permissions and content script matches
+- `bdlaw-page-detector.js` (`ALLOWED_PROTOCOLS: http/https`)
+- URL normalization in extractor via protocol-aware helpers
 
-## 3. Architectural Observations and Considerations
+### 3.2 Failure taxonomy improvements
+Queue and side panel now distinguish:
+- `ACT_NOT_FOUND` (permanent)
+- `SITE_UNAVAILABLE` (transient)
 
-This section provides objective observations about the codebase and its design. These points are intended to inform the research paper and any future development.
+Error-page handling in side panel classifies failures instead of collapsing them into generic network errors.
 
-*   **UI State Management:** The settings in the main popup UI and the options page are managed independently. For instance, the "Remove Duplicates" checkbox in the popup is not synchronized with any setting on the options page. This is a deliberate design choice in the current implementation, but it means that settings are context-specific (i.e., some are configured in the popup, others on the options page).
+### 3.3 Retry policy alignment
+Retry decisions are classification-driven (`shouldRetry` + `classifyFailure`):
+- transient reasons are retryable below max attempts
+- permanent reasons are never retried
 
-*   **Data Capture Redundancy:** The raw data in the `outputs/` directory contains some files with numerically incremented names (e.g., `... (1).txt`). This indicates that the scraping process, as executed, sometimes captured the same page multiple times. The `text-processor.js` script is designed to mitigate this at the processing stage by removing duplicate content.
+### 3.4 Integrity and extractor fixes already reflected in codebase
+- `computeContentHash()` returns raw 64-char SHA-256 hex
+- `_simpleHash()` uses `length_checksum` strategy
+- `extractWithRetry()` loop semantics corrected
+- Bengali Unicode and mixed Bengali/ASCII numeral citation patterns are present in extractor regex logic
 
-*   **File System Access UI:** The popup UI includes a "Browse" button for selecting a custom save folder. When clicked, it informs the user that this feature is not supported in the popup. This is an accurate reflection of the browser's security model, which requires a more persistent context (like a full tab) for the File System Access API. The current implementation directs all downloads to the default "Downloads" folder via the `chrome.downloads` API, which is a reliable and secure fallback.
+## 4) Verification Snapshot
 
-*   **UI Implementation in `content.js`:** The in-page Sider UI is built using direct DOM manipulation. This is a standard and effective technique for injecting content into web pages. As the UI's complexity grows, future development cycles could consider adopting a more structured approach, but for the current scope, the implementation is functional and fit for purpose.
+Targeted property suites for recent hardening work pass:
+- `domain.property.test.js`
+- `page-type.property.test.js`
+- `retry-mechanism-correctness.property.test.js`
+- `url-normalization.property.test.js`
+
+Recent run outcome: **4 suites passed, 47 tests passed**.
+
+## 5) Documentation Hygiene Notes
+
+This file replaces prior stale analysis content that referred to an unrelated "Web Text Extractor" project and non-existent modules/files. The current analysis is aligned with the actual BDLawCorpus codebase and behavior.
