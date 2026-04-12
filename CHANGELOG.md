@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Schema changes are **additive only**. Fields are never removed, only deprecated.
 
+## [1.3.1] - 2026-04-12
+
+### Added
+- `.zenodo.json` repository metadata to improve Zenodo ingestion and DOI record quality
+
+### Changed
+- Bumped repository/package/extension metadata to `1.3.1` for a Zenodo DOI-trigger follow-up release
+- Updated citation metadata release date and version to match the DOI-trigger release
+
 ## [1.3.0] - 2026-01-05
 
 ### Added - Durable Persistence Hardening

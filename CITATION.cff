@@ -2,8 +2,8 @@ cff-version: 1.2.0
 message: "If you use this software or dataset, please cite it as below."
 type: software
 title: "BDLawCorpus: Browser-Based Archival Snapshot Tool for Bangladeshi Legal Texts"
-version: "1.3.0"
-date-released: "2026-01-05"
+version: "1.3.1"
+date-released: "2026-04-12"
 url: "https://github.com/codermillat/BDLawCorpus"
 repository-code: "https://github.com/codermillat/BDLawCorpus"
 license: MIT
@@ -35,6 +35,7 @@ preferred-citation:
   authors:
     - name: "BDLawCorpus Contributors"
   year: 2026
+  version: "1.3.1"
   url: "https://github.com/codermillat/BDLawCorpus"
   notes: >-
     Archival snapshot tool capturing browser-rendered DOM text via 

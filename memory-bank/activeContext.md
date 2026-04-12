@@ -21,6 +21,12 @@ Current emphasis is no longer just "make the sync section visible". The codebase
 - Important nuance: the folder is healthy, but the filesystem sync feature as a whole is still considered only partially live-validated because end-to-end browser verification remains pending.
 - Release decision for this session: **do not publish a GitHub release yet**; memory bank updated first, release intentionally deferred.
 
+### Zenodo / DOI Trigger Release Preparation
+- After publishing GitHub release `v1.3.0`, Zenodo still showed the repository in a pre-ingestion "Get started" state, implying the existing release was not picked up for DOI minting.
+- Chosen mitigation: prepare a follow-up release `v1.3.1` specifically to trigger Zenodo archival after repository linkage was confirmed active.
+- Added repository-level Zenodo metadata (`.zenodo.json`) and aligned release metadata files (`package.json`, `package-lock.json`, `manifest.json`, `CITATION.cff`, `CHANGELOG.md`) to version `1.3.1`.
+- Goal of this follow-up release: improve Zenodo ingestion reliability and produce a DOI-backed archival record for the GitHub release stream.
+
 ### Filesystem Sync Implementation Expansion
 - Diagnosed the "local file system sync not showing in the sidebar" issue as missing implementation, not a hidden/conditional render bug.
 - Added/now present in the codebase:
@@ -133,4 +139,5 @@ Current emphasis is no longer just "make the sync section visible". The codebase
    - verify manifest/state/log files are written
    - verify successful and failed act exports land in the expected canonical paths
    - verify reconnect/reconcile/pause behavior after panel reload.
-5. After live validation is complete, prepare the eventual GitHub release/tag from the validated state rather than from the current partially verified sync implementation.
+5. Verify that Zenodo ingests the DOI-trigger release (`v1.3.1`), then capture the concept DOI + version DOI in repository metadata and docs.
+6. After live validation is complete, prepare any later release/tag from the validated state rather than from the current partially verified sync implementation.

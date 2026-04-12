@@ -4,7 +4,7 @@
 
 **Phase:** Hardening complete for protocol/failure-taxonomy scope; local filesystem sync now in partial implementation / validation phase  
 **Corpus scope:** ~1,500+ Acts across 57 volumes (1799–2026)  
-**Extension:** Chrome MV3 with durable storage, classification-driven retry policy, dual protocol support, and in-progress local filesystem sync
+**Extension:** Chrome MV3 with durable storage, classification-driven retry policy, dual protocol support, in-progress local filesystem sync, and Zenodo DOI-trigger release preparation
 
 ---
 
@@ -114,6 +114,11 @@
   - `sync-state.json` reports granted permission and zero pending work
 - Conclusion: no extension enhancement is required for `BDLawsActs/` folder compatibility; any further work is robustness/validation work, not format-support work.
 
+### Zenodo DOI Trigger Preparation
+- Published GitHub release `v1.3.0`, but Zenodo repository view still indicated no ingested release.
+- Prepared a follow-up metadata/release bump to `1.3.1` to trigger Zenodo archival after repository linkage was confirmed active.
+- Added `.zenodo.json` metadata support and aligned release-facing version files to `1.3.1`.
+
 ---
 
 ## Open / Next Phase Items
@@ -125,7 +130,9 @@
 - [ ] Live browser verification of filesystem sync end-to-end behavior
 - [ ] More regression coverage for filesystem sync runtime/helpers beyond the current markup smoke test
 - [ ] Decide how degraded/no-`showDirectoryPicker()` environments should be messaged and handled long-term
-- [ ] Prepare a GitHub release only after live filesystem sync validation is complete; release was intentionally deferred during this memory-bank-only update
+- [ ] Verify Zenodo ingests `v1.3.1` and records both concept DOI and version DOI
+- [ ] Update citation/docs/README once the DOI is minted
+- [ ] Prepare any subsequent GitHub release after live filesystem sync validation is complete
 
 ---
 

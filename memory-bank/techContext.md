@@ -9,6 +9,12 @@
 **Popup UI:** `popup.html` + `popup.js`  
 **Local sync runtime helpers:** `bdlaw-filesystem-sync.js`, `bdlaw-sync-manifest.js`
 
+### Release / archival metadata tooling
+- GitHub releases are now part of the publication workflow
+- Repository now includes `.zenodo.json` for Zenodo metadata ingestion
+- `CITATION.cff` is maintained alongside GitHub release metadata for citation/export consistency
+- Current DOI-trigger release preparation version: `1.3.1`
+
 ---
 
 ## Manifest & Permissions (Current)
