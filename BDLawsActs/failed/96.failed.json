@@ -1,41 +1,34 @@
 {
-  "act_number": "502",
-  "title": "The District Administration (Repeal) Ordinance, 1975",
-  "url": "http://bdlaws.minlaw.gov.bd/act-details-502.html",
+  "act_number": "96",
+  "title": "The Lunacy Act, 1912  [Repealed]",
+  "url": "http://bdlaws.minlaw.gov.bd/act-details-96.html",
   "extraction_status": "failed",
   "failure_reason": "site_unavailable",
-  "attempts": 3,
+  "attempts": 2,
   "attempt_history": [
     {
       "attempt_number": 1,
       "outcome": "failed",
       "reason": "site_unavailable",
       "selector_strategy": "standard_selectors",
-      "timestamp": "2026-04-08T21:18:37.356Z"
+      "timestamp": "2026-04-12T09:37:51.613Z"
     },
     {
       "attempt_number": 2,
       "outcome": "failed",
       "reason": "site_unavailable",
       "selector_strategy": "broader_selectors",
-      "timestamp": "2026-04-08T21:19:37.666Z"
-    },
-    {
-      "attempt_number": 3,
-      "timestamp": "2026-04-08T21:21:29.352Z",
-      "reason": "site_unavailable",
-      "outcome": "failed",
-      "selector_strategy": "broader_selectors"
+      "timestamp": "2026-04-12T09:38:07.116Z"
     }
   ],
   "content_raw": null,
   "content_normalized": null,
   "content_corrected": null,
   "_metadata": {
-    "first_attempt_at": "2026-04-08T21:18:37.356Z",
-    "last_attempt_at": "2026-04-08T21:21:29.352Z",
-    "total_attempts": 3,
-    "max_retries_reached": true,
+    "first_attempt_at": "2026-04-12T09:37:51.613Z",
+    "last_attempt_at": "2026-04-12T09:38:07.116Z",
+    "total_attempts": 2,
+    "max_retries_reached": false,
     "extraction_status": "failed",
     "failure_reason": "site_unavailable",
     "selector_strategies_used": [

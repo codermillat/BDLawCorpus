@@ -20,26 +20,30 @@
 │  - Drives queue processing loop                     │
 │  - Shows extraction progress                        │
 │  - Triggers retry queue                             │
-│  - Manages export                                   │
+│  - Manages export + local filesystem sync           │
 └──────┬───────────┬────────────────┬─────────────────┘
        │           │                │
-┌──────▼──┐  ┌────▼────┐  ┌───────▼────────┐
-│bdlaw-   │  │bdlaw-   │  │bdlaw-          │
-│extractor│  │queue.js │  │storage.js      │
-│.js      │  │         │  │                │
-│         │  │Queue    │  │IndexedDB       │
-│DOM      │  │Dedup    │  │→chrome.storage │
-│Extract  │  │Retry    │  │→MemoryBackend  │
-│Language │  │Classify │  │                │
-│Citations│  │Config   │  │WAL + Receipts  │
-│Hashing  │  │         │  │Audit Log       │
-└──────────┘  └─────────┘  └───────┬────────┘
-                                   │
-                          ┌────────▼────────┐
-                          │ bdlaw-export.js │
-                          │ Corpus JSON v3.1│
-                          │ Failed extracts │
-                          └─────────────────┘
+┌──────▼──┐  ┌────▼────┐  ┌───────▼────────┐     ┌──────────────────────┐
+│bdlaw-   │  │bdlaw-   │  │bdlaw-          │     │bdlaw-filesystem-     │
+│extractor│  │queue.js │  │storage.js      │     │sync.js +             │
+│.js      │  │         │  │                │     │bdlaw-sync-manifest.js│
+│         │  │Queue    │  │IndexedDB       │     │                      │
+│DOM      │  │Dedup    │  │→chrome.storage │     │Canonical paths       │
+│Extract  │  │Retry    │  │→MemoryBackend  │     │Manifest dedup        │
+│Language │  │Classify │  │                │     │Folder IO helpers     │
+│Citations│  │Config   │  │WAL + Receipts  │     │Sync queue build      │
+│Hashing  │  │         │  │Audit + SyncMeta│     │Status derivation     │
+└──────────┘  └─────────┘  └───────┬────────┘     └──────────┬───────────┘
+                                   │                         │
+                          ┌────────▼────────┐                │
+                          │ bdlaw-export.js │                │
+                          │ Corpus JSON v3.1│                │
+                          │ Failed extracts │                │
+                          └─────────────────┘                │
+                                                             ▼
+                                                 Local folder mirror
+                                                 acts/ failed/ logs/
+                                                 manifests/
 ```
 
 ## Key Design Patterns
@@ -94,6 +98,28 @@ pending → processing → success (removed from queue)
                          → [permanent] → permanent_failure_log
 ```
 
+### 6. Local Filesystem Mirror Pattern
+The extension can maintain a second, user-chosen local representation of corpus outputs:
+
+```text
+IndexedDB / in-memory state
+        ↓
+sidepanel rebuilds pending sync queue
+        ↓
+sync manifest decides what changed
+        ↓
+filesystem helpers write canonical files
+        ↓
+manifests + logs updated in selected folder
+```
+
+Important traits:
+- sync is user-enabled and folder-backed
+- successful acts and failed acts have separate canonical paths
+- dedup is manifest-driven (`content_hash` for successes, failure fingerprint for failures)
+- audit log is materialized to NDJSON in the sync folder
+- sidepanel remains the orchestrator; helper modules stay pure/testable where possible.
+
 ## Module Responsibilities
 
 ### `bdlaw-extractor.js` (~2500 lines)
@@ -113,6 +139,7 @@ pending → processing → success (removed from queue)
 - WAL management
 - Extraction receipt management
 - Audit log operations
+- Sync metadata persistence (`sync_meta` object store + volatile directory handle bridge)
 - `loadAct()`, `saveAct()`, `loadReceipts()`, etc.
 
 ### `bdlaw-queue.js`
@@ -121,6 +148,18 @@ pending → processing → success (removed from queue)
 - Failure tracking + retry policy
 - Export formatting (corpus + failed acts)
 - Queue configuration management
+
+### `bdlaw-filesystem-sync.js`
+- Canonical relative paths for successful acts, failed acts, logs, and manifests
+- File System Access helper methods (read/write/append/delete)
+- Pending sync queue construction from in-memory extraction state + manifest state
+- Computed status helper for UI display
+
+### `bdlaw-sync-manifest.js`
+- Sync-manifest schema normalization
+- Success/failure dedup decisions
+- Manifest update logic for successful and failed sync writes
+- Sync log-stat bookkeeping
 
 ### `content.js`
 - Injected at `document_end` on all bdlaws pages
@@ -152,6 +191,13 @@ pending → processing → success (removed from queue)
 ### `bdlaw-corpus-manifest.js`
 - Corpus-level statistics
 - Act counts, language distribution, volume coverage
+
+### `sidepanel.js` (notable orchestration role)
+- Restores sync state and stored directory handle at startup
+- Rebuilds pending sync work from captured acts, failed extractions, and sync manifest
+- Schedules sync flushes after state changes
+- Handles folder select/reconnect/manual sync/reconcile/pause UI actions
+- Writes sync status back to both storage and selected folder manifests
 
 ## Critical Implementation Rules
 1. **NEVER use `element.innerText`** — only `element.textContent`

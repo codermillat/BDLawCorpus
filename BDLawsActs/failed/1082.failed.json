@@ -1,7 +1,7 @@
 {
-  "act_number": "1083",
-  "title": "মানিলন্ডারিং প্রতিরোধ অধ্যাদেশ, ২০১২",
-  "url": "http://bdlaws.minlaw.gov.bd/act-details-1083.html",
+  "act_number": "1082",
+  "title": "অপরাধ সম্পর্কিত বিষয়ে পারস্পরিক সহায়তা অধ্যাদেশ, ২০১২",
+  "url": "http://bdlaws.minlaw.gov.bd/act-details-1082.html",
   "extraction_status": "failed",
   "failure_reason": "act_not_found",
   "attempts": 1,
@@ -11,15 +11,15 @@
       "outcome": "failed",
       "reason": "act_not_found",
       "selector_strategy": "standard_selectors",
-      "timestamp": "2026-04-08T21:19:14.022Z"
+      "timestamp": "2026-04-12T09:37:55.781Z"
     }
   ],
   "content_raw": null,
   "content_normalized": null,
   "content_corrected": null,
   "_metadata": {
-    "first_attempt_at": "2026-04-08T21:19:14.022Z",
-    "last_attempt_at": "2026-04-08T21:19:14.022Z",
+    "first_attempt_at": "2026-04-12T09:37:55.781Z",
+    "last_attempt_at": "2026-04-12T09:37:55.781Z",
     "total_attempts": 1,
     "max_retries_reached": false,
     "extraction_status": "failed",

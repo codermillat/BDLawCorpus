@@ -6,7 +6,8 @@
 **Service Worker:** `background.js`  
 **Content Scripts:** `bdlaw-quality.js`, `content.js` (`document_end`)  
 **Primary UI:** `sidepanel.html` + `sidepanel.js`  
-**Popup UI:** `popup.html` + `popup.js`
+**Popup UI:** `popup.html` + `popup.js`  
+**Local sync runtime helpers:** `bdlaw-filesystem-sync.js`, `bdlaw-sync-manifest.js`
 
 ---
 
@@ -52,6 +53,38 @@ Any URL outside this hostname/protocol pair is treated as invalid for extraction
 
 ---
 
+## Local Filesystem Sync Runtime (Current)
+
+The codebase now contains a partial local filesystem sync implementation in the side panel.
+
+### Runtime assumptions
+- Relies on `window.showDirectoryPicker()` availability in the browser/profile hosting the side panel
+- Uses File System Access directory handles at runtime; these are not traditional manifest permissions
+- Sync remains optional and user-enabled
+
+### Current sync outputs
+- `acts/{actNumber}.json`
+- `failed/{actNumber}.failed.json`
+- `logs/audit-log.ndjson`
+- `logs/sync-log.ndjson`
+- `manifests/sync-manifest.json`
+- `manifests/sync-state.json`
+
+### Current sidepanel behavior
+- Restores persisted sync state on startup
+- Restores a stored directory handle when possible
+- Re-checks folder permission before sync actions
+- Rebuilds pending sync items from captured acts + failed extractions + sync manifest
+- Supports manual sync, reconcile, reconnect, and pause/resume auto-sync actions
+- Schedules delayed background flushes after relevant state changes
+
+### Current limitations
+- Live browser end-to-end validation is still pending
+- Environments without `showDirectoryPicker()` currently surface an error state rather than a full fallback workflow
+- Regression coverage currently proves UI presence, not full sync semantics
+
+---
+
 ## Queue Failure Taxonomy (Current)
 
 Defined in `bdlaw-queue.js`:
@@ -83,6 +116,17 @@ Retry gate is `BDLawQueue.shouldRetry()` and is classification-driven.
 - Returns `SITE_UNAVAILABLE` for browser/network/downtime-like errors
 
 This classification is applied in both main queue processing and retry queue processing paths.
+
+---
+
+## Sync Metadata Persistence
+
+`bdlaw-storage.js` now persists local sync metadata separately from extracted acts:
+
+- sync state via `saveSyncState()` / `loadSyncState()`
+- directory-handle lifecycle via `saveSyncDirectoryHandle()` / `loadSyncDirectoryHandle()` / `clearSyncDirectoryHandle()`
+- IndexedDB `sync_meta` object store when IndexedDB is active
+- volatile handle bridge (`_volatileSyncDirectoryHandle`) because directory handles are runtime objects, not plain JSON payloads
 
 ---
 
@@ -121,3 +165,12 @@ npx jest tests/property/domain.property.test.js tests/property/page-type.propert
 ```
 
 Result snapshot: **4 suites passed, 47 tests passed**.
+
+Additional sync-related verification snapshot:
+
+```bash
+npx jest tests/integration/filesystem-sync-ui.test.js --runInBand
+node --check sidepanel.js
+```
+
+Result snapshot: filesystem sync UI smoke test passed; sidepanel syntax check passed.

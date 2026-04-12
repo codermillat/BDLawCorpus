@@ -1,29 +1,29 @@
 {
-  "act_number": "1318",
-  "title": "THE [***] GOVERNMENT INDEMNITY REGULATION, 1822",
-  "url": "http://bdlaws.minlaw.gov.bd/act-details-1318.html",
+  "act_number": "1083",
+  "title": "মানিলন্ডারিং প্রতিরোধ অধ্যাদেশ, ২০১২",
+  "url": "http://bdlaws.minlaw.gov.bd/act-details-1083.html",
   "extraction_status": "failed",
-  "failure_reason": "content_selector_mismatch",
+  "failure_reason": "act_not_found",
   "attempts": 1,
   "attempt_history": [
     {
       "attempt_number": 1,
-      "timestamp": "2026-04-08T21:20:46.383Z",
-      "reason": "content_selector_mismatch",
       "outcome": "failed",
-      "selector_strategy": "standard_selectors"
+      "reason": "act_not_found",
+      "selector_strategy": "standard_selectors",
+      "timestamp": "2026-04-12T09:37:56.016Z"
     }
   ],
   "content_raw": null,
   "content_normalized": null,
   "content_corrected": null,
   "_metadata": {
-    "first_attempt_at": "2026-04-08T21:20:46.383Z",
-    "last_attempt_at": "2026-04-08T21:20:46.383Z",
+    "first_attempt_at": "2026-04-12T09:37:56.016Z",
+    "last_attempt_at": "2026-04-12T09:37:56.016Z",
     "total_attempts": 1,
     "max_retries_reached": false,
     "extraction_status": "failed",
-    "failure_reason": "content_selector_mismatch",
+    "failure_reason": "act_not_found",
     "selector_strategies_used": [
       "standard_selectors"
     ],
