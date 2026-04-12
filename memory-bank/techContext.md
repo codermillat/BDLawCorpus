@@ -14,6 +14,9 @@
 - Repository now includes `.zenodo.json` for Zenodo metadata ingestion
 - `CITATION.cff` is maintained alongside GitHub release metadata for citation/export consistency
 - Current DOI-trigger release preparation version: `1.3.1`
+- Minted Zenodo identifiers for the current release line:
+  - Version DOI: `10.5281/zenodo.19539461`
+  - Concept DOI: `10.5281/zenodo.19539460`
 
 ---
 

@@ -118,6 +118,11 @@
 - Published GitHub release `v1.3.0`, but Zenodo repository view still indicated no ingested release.
 - Prepared a follow-up metadata/release bump to `1.3.1` to trigger Zenodo archival after repository linkage was confirmed active.
 - Added `.zenodo.json` metadata support and aligned release-facing version files to `1.3.1`.
+- Published GitHub release `v1.3.1` and confirmed Zenodo ingestion.
+- Minted identifiers:
+  - Version DOI: `10.5281/zenodo.19539461`
+  - Concept DOI: `10.5281/zenodo.19539460`
+- Updated `README.md` and `CITATION.cff` to reference the minted DOI.
 
 ---
 
@@ -130,8 +135,8 @@
 - [ ] Live browser verification of filesystem sync end-to-end behavior
 - [ ] More regression coverage for filesystem sync runtime/helpers beyond the current markup smoke test
 - [ ] Decide how degraded/no-`showDirectoryPicker()` environments should be messaged and handled long-term
-- [ ] Verify Zenodo ingests `v1.3.1` and records both concept DOI and version DOI
-- [ ] Update citation/docs/README once the DOI is minted
+- [x] Verify Zenodo ingests `v1.3.1` and records both concept DOI and version DOI
+- [x] Update citation/docs/README once the DOI is minted
 - [ ] Prepare any subsequent GitHub release after live filesystem sync validation is complete
 
 ---

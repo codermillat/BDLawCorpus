@@ -1,5 +1,7 @@
 # BDLawCorpus
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.19539461.svg)](https://doi.org/10.5281/zenodo.19539461)
+
 A browser-based archival snapshot tool for capturing DOM-rendered text from bdlaws.minlaw.gov.bd.
 
 Supports both `http://bdlaws.minlaw.gov.bd` and `https://bdlaws.minlaw.gov.bd` origins.
@@ -234,6 +236,9 @@ All storage operations are logged for research reproducibility:
 ## Citation
 
 See [`CITATION.cff`](CITATION.cff) for academic citation metadata.
+
+- **Version DOI (`v1.3.1`)**: https://doi.org/10.5281/zenodo.19539461
+- **Concept DOI (all versions)**: https://doi.org/10.5281/zenodo.19539460
 
 ## Documentation
 

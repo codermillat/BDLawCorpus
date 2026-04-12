@@ -4,6 +4,7 @@ type: software
 title: "BDLawCorpus: Browser-Based Archival Snapshot Tool for Bangladeshi Legal Texts"
 version: "1.3.1"
 date-released: "2026-04-12"
+doi: "10.5281/zenodo.19539461"
 url: "https://github.com/codermillat/BDLawCorpus"
 repository-code: "https://github.com/codermillat/BDLawCorpus"
 license: MIT
@@ -36,6 +37,7 @@ preferred-citation:
     - name: "BDLawCorpus Contributors"
   year: 2026
   version: "1.3.1"
+  doi: "10.5281/zenodo.19539461"
   url: "https://github.com/codermillat/BDLawCorpus"
   notes: >-
     Archival snapshot tool capturing browser-rendered DOM text via 
@@ -46,3 +48,7 @@ references:
     title: "Bangladesh Laws (Official Source)"
     url: "http://bdlaws.minlaw.gov.bd"
     notes: "Primary data source - Ministry of Law and Justice, Bangladesh"
+  - type: generic
+    title: "Zenodo archive record for BDLawCorpus v1.3.1"
+    doi: "10.5281/zenodo.19539461"
+    url: "https://zenodo.org/records/19539461"

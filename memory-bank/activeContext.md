@@ -26,6 +26,10 @@ Current emphasis is no longer just "make the sync section visible". The codebase
 - Chosen mitigation: prepare a follow-up release `v1.3.1` specifically to trigger Zenodo archival after repository linkage was confirmed active.
 - Added repository-level Zenodo metadata (`.zenodo.json`) and aligned release metadata files (`package.json`, `package-lock.json`, `manifest.json`, `CITATION.cff`, `CHANGELOG.md`) to version `1.3.1`.
 - Goal of this follow-up release: improve Zenodo ingestion reliability and produce a DOI-backed archival record for the GitHub release stream.
+- Outcome confirmed: Zenodo ingested `v1.3.1` successfully.
+  - Version DOI: `10.5281/zenodo.19539461`
+  - Concept DOI: `10.5281/zenodo.19539460`
+- Follow-up documentation update performed: added DOI references to `README.md` and `CITATION.cff`.
 
 ### Filesystem Sync Implementation Expansion
 - Diagnosed the "local file system sync not showing in the sidebar" issue as missing implementation, not a hidden/conditional render bug.
@@ -139,5 +143,4 @@ Current emphasis is no longer just "make the sync section visible". The codebase
    - verify manifest/state/log files are written
    - verify successful and failed act exports land in the expected canonical paths
    - verify reconnect/reconcile/pause behavior after panel reload.
-5. Verify that Zenodo ingests the DOI-trigger release (`v1.3.1`), then capture the concept DOI + version DOI in repository metadata and docs.
-6. After live validation is complete, prepare any later release/tag from the validated state rather than from the current partially verified sync implementation.
+5. After live validation is complete, prepare any later release/tag from the validated state rather than from the current partially verified sync implementation.
