@@ -650,6 +650,8 @@ const MemoryBackend = {
   _receipts: [],
   _wal: [],
   _auditLog: [],
+  _syncState: null,
+  _syncDirectoryHandle: null,
   
   // Soft quota limit (100MB)
   QUOTA_BYTES: 100 * 1024 * 1024,
@@ -801,6 +803,8 @@ const MemoryBackend = {
     this._receipts = [];
     this._wal = [];
     this._auditLog = [];
+    this._syncState = null;
+    this._syncDirectoryHandle = null;
     this._volatilityWarningShown = false;
   },
 
@@ -841,6 +845,8 @@ const StorageManager = {
     wal: [],
     audit_log: []
   },
+
+  _volatileSyncDirectoryHandle: null,
   
   // Backend priority order
   // Requirements: 10.7 - Attempt backends in order
@@ -848,7 +854,7 @@ const StorageManager = {
   
   // Database configuration
   DB_NAME: 'BDLawCorpusDB',
-  DB_VERSION: 1,
+  DB_VERSION: 2,
   
   // Storage thresholds
   // Requirements: 2.2, 2.3 - Warning and critical thresholds
@@ -1070,7 +1076,19 @@ const StorageManager = {
         { name: 'by_timestamp', keyPath: 'timestamp', options: { unique: false } },
         { name: 'by_operation', keyPath: 'operation', options: { unique: false } }
       ]
+    },
+    // Object store for filesystem sync state + persisted directory handle
+    sync_meta: {
+      keyPath: 'key',
+      indexes: [
+        { name: 'by_updated_at', keyPath: 'updated_at', options: { unique: false } }
+      ]
     }
+  },
+
+  SYNC_META_KEYS: {
+    STATE: 'sync_state',
+    DIRECTORY_HANDLE: 'sync_directory_handle'
   },
 
   /**
@@ -2551,6 +2569,190 @@ const StorageManager = {
    */
   getActiveBackend() {
     return this._activeBackend;
+  },
+
+  async _saveSyncMetaToIndexedDB(key, value) {
+    if (!this._db) {
+      throw new StorageError(
+        StorageErrorType.BACKEND_UNAVAILABLE,
+        'IndexedDB not initialized. Call initialize() first.',
+        { operation: 'saveSyncMeta', key }
+      );
+    }
+
+    const record = {
+      key,
+      value,
+      updated_at: new Date().toISOString()
+    };
+
+    return new Promise((resolve, reject) => {
+      try {
+        const transaction = this._db.transaction(['sync_meta'], 'readwrite');
+        const store = transaction.objectStore('sync_meta');
+        const request = store.put(record);
+
+        request.onsuccess = () => resolve(value);
+        request.onerror = (event) => {
+          reject(createStorageError(event.target.error, {
+            operation: 'saveSyncMeta',
+            key
+          }));
+        };
+        transaction.onerror = (event) => {
+          reject(createStorageError(event.target.error, {
+            operation: 'saveSyncMeta',
+            key
+          }));
+        };
+      } catch (e) {
+        reject(createStorageError(e, { operation: 'saveSyncMeta', key }));
+      }
+    });
+  },
+
+  async _loadSyncMetaFromIndexedDB(key) {
+    if (!this._db) {
+      throw new StorageError(
+        StorageErrorType.BACKEND_UNAVAILABLE,
+        'IndexedDB not initialized. Call initialize() first.',
+        { operation: 'loadSyncMeta', key }
+      );
+    }
+
+    return new Promise((resolve, reject) => {
+      try {
+        const transaction = this._db.transaction(['sync_meta'], 'readonly');
+        const store = transaction.objectStore('sync_meta');
+        const request = store.get(key);
+
+        request.onsuccess = (event) => {
+          const record = event.target.result;
+          resolve(record ? record.value : null);
+        };
+        request.onerror = (event) => {
+          reject(createStorageError(event.target.error, {
+            operation: 'loadSyncMeta',
+            key
+          }));
+        };
+        transaction.onerror = (event) => {
+          reject(createStorageError(event.target.error, {
+            operation: 'loadSyncMeta',
+            key
+          }));
+        };
+      } catch (e) {
+        reject(createStorageError(e, { operation: 'loadSyncMeta', key }));
+      }
+    });
+  },
+
+  async _deleteSyncMetaFromIndexedDB(key) {
+    if (!this._db) {
+      throw new StorageError(
+        StorageErrorType.BACKEND_UNAVAILABLE,
+        'IndexedDB not initialized. Call initialize() first.',
+        { operation: 'deleteSyncMeta', key }
+      );
+    }
+
+    return new Promise((resolve, reject) => {
+      try {
+        const transaction = this._db.transaction(['sync_meta'], 'readwrite');
+        const store = transaction.objectStore('sync_meta');
+        const request = store.delete(key);
+
+        request.onsuccess = () => resolve(true);
+        request.onerror = (event) => {
+          reject(createStorageError(event.target.error, {
+            operation: 'deleteSyncMeta',
+            key
+          }));
+        };
+        transaction.onerror = (event) => {
+          reject(createStorageError(event.target.error, {
+            operation: 'deleteSyncMeta',
+            key
+          }));
+        };
+      } catch (e) {
+        reject(createStorageError(e, { operation: 'deleteSyncMeta', key }));
+      }
+    });
+  },
+
+  async saveSyncState(syncState) {
+    const normalizedState = {
+      sync_enabled: !!syncState?.sync_enabled,
+      folder_name: syncState?.folder_name || null,
+      permission: syncState?.permission || null,
+      last_synced_at: syncState?.last_synced_at || null,
+      last_error: syncState?.last_error || null,
+      updated_at: new Date().toISOString()
+    };
+
+    if (this._activeBackend === 'indexeddb') {
+      return this._saveSyncMetaToIndexedDB(this.SYNC_META_KEYS.STATE, normalizedState);
+    }
+
+    if (this._activeBackend === 'chrome_storage' && typeof chrome !== 'undefined' && chrome.storage?.local) {
+      await chrome.storage.local.set({ bdlaw_sync_state: normalizedState });
+      return normalizedState;
+    }
+
+    MemoryBackend._syncState = normalizedState;
+    return normalizedState;
+  },
+
+  async loadSyncState() {
+    if (this._activeBackend === 'indexeddb') {
+      return this._loadSyncMetaFromIndexedDB(this.SYNC_META_KEYS.STATE);
+    }
+
+    if (this._activeBackend === 'chrome_storage' && typeof chrome !== 'undefined' && chrome.storage?.local) {
+      const result = await chrome.storage.local.get(['bdlaw_sync_state']);
+      return result.bdlaw_sync_state || null;
+    }
+
+    return MemoryBackend._syncState || null;
+  },
+
+  async saveSyncDirectoryHandle(handle) {
+    if (!handle) {
+      throw new StorageError(
+        StorageErrorType.UNKNOWN_ERROR,
+        'Directory handle is required',
+        { operation: 'saveSyncDirectoryHandle' }
+      );
+    }
+
+    if (this._activeBackend === 'indexeddb') {
+      return this._saveSyncMetaToIndexedDB(this.SYNC_META_KEYS.DIRECTORY_HANDLE, handle);
+    }
+
+    this._volatileSyncDirectoryHandle = handle;
+    MemoryBackend._syncDirectoryHandle = handle;
+    return handle;
+  },
+
+  async loadSyncDirectoryHandle() {
+    if (this._activeBackend === 'indexeddb') {
+      return this._loadSyncMetaFromIndexedDB(this.SYNC_META_KEYS.DIRECTORY_HANDLE);
+    }
+
+    return this._volatileSyncDirectoryHandle || MemoryBackend._syncDirectoryHandle || null;
+  },
+
+  async clearSyncDirectoryHandle() {
+    this._volatileSyncDirectoryHandle = null;
+    MemoryBackend._syncDirectoryHandle = null;
+
+    if (this._activeBackend === 'indexeddb') {
+      return this._deleteSyncMetaFromIndexedDB(this.SYNC_META_KEYS.DIRECTORY_HANDLE);
+    }
+
+    return true;
   },
 
   /**
@@ -4666,6 +4868,12 @@ if (typeof module !== 'undefined' && module.exports) {
     logIntent: (actId) => StorageManager.logIntent(actId),
     logComplete: (actId, contentHash) => StorageManager.logComplete(actId, contentHash),
     getIncompleteExtractions: () => StorageManager.getIncompleteExtractions(),
+    // Filesystem sync state functions
+    saveSyncState: (syncState) => StorageManager.saveSyncState(syncState),
+    loadSyncState: () => StorageManager.loadSyncState(),
+    saveSyncDirectoryHandle: (handle) => StorageManager.saveSyncDirectoryHandle(handle),
+    loadSyncDirectoryHandle: () => StorageManager.loadSyncDirectoryHandle(),
+    clearSyncDirectoryHandle: () => StorageManager.clearSyncDirectoryHandle(),
     // Audit log functions
     logAuditEntry: (entry) => StorageManager.logAuditEntry(entry),
     getAuditLog: (options) => StorageManager.getAuditLog(options),

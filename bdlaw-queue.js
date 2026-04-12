@@ -50,7 +50,12 @@ const LEGAL_CONTENT_SIGNALS = {
     'h1.act-name',
     '.act-header h1',
     '#actTitle',
-    '.actTitle'
+    '.actTitle',
+    '.bg-act-section h3',
+    '.boxed-layout h3',
+    '.boxed-layout h4',
+    '.text-center h3',
+    'title'
   ],
   
   // Enactment clause patterns (English and Bengali)
@@ -65,10 +70,22 @@ const LEGAL_CONTENT_SIGNALS = {
   // First section patterns (English and Bengali)
   // Indicates numbered sections have begun
   SECTION_PATTERNS: [
-    /^\s*1\.\s/m,                      // English: "1. " at line start
-    /^\s*১\.\s/m,                      // Bengali: "১. " at line start
+    /^\s*1\.(?:\s|\[|$)/m,             // English: "1. " or old-style "1.[Preamble.]"
+    /^\s*১\.(?:\s|\[|$)/m,             // Bengali: "১. " or bracketed heading
     /^Section\s+1\b/im,                // "Section 1"
     /^ধারা\s+১\b/m                      // Bengali: "ধারা ১" (Section 1)
+  ],
+
+  // Strong DOM-structure signals found on legitimate BDLaws act pages.
+  // These help older / irregular acts pass readiness even when they lack
+  // modern enactment wording such as "WHEREAS".
+  STRUCTURAL_SELECTORS: [
+    '.boxed-layout',
+    '.col-sm-9.txt-details',
+    '#sec-dec',
+    '.lineremoves',
+    '.bg-act-section h3',
+    'a[href*="act-print-"]'
   ]
 };
 
@@ -158,6 +175,174 @@ const BDLawQueue = {
     
     const match = url.match(/\/volume-(\d+)\.html/);
     return match ? match[1] : 'unknown';
+  },
+
+  /**
+   * Determine whether a URL looks like a normal BDLaws act document URL.
+   * This protects act IDs like 404/500/503 from being mistaken as HTTP codes.
+   *
+   * @param {string} rawUrl
+   * @returns {boolean}
+   */
+  isLikelyActDocumentUrl(rawUrl) {
+    if (!rawUrl || typeof rawUrl !== 'string') return false;
+
+    try {
+      const parsed = new URL(rawUrl);
+      const hostOk = /(^|\.)bdlaws\.minlaw\.gov\.bd$/i.test(parsed.hostname);
+      if (!hostOk) return false;
+      return /^\/act-(?:details|print)-\d+\.html$/i.test(parsed.pathname);
+    } catch (e) {
+      return /act-(?:details|print)-\d+\.html/i.test(rawUrl);
+    }
+  },
+
+  /**
+   * Classify a browser tab into queue failure taxonomy.
+   *
+   * CRITICAL: Do not treat numeric act IDs in valid URLs (e.g. act-details-500)
+   * as HTTP error codes.
+   *
+   * @param {{url?: string, title?: string}} tabInfo
+   * @returns {string|null}
+   */
+  classifyTabFailure(tabInfo) {
+    if (!tabInfo) return FAILURE_REASONS.SITE_UNAVAILABLE;
+
+    const rawUrl = String(tabInfo.url || '');
+    const rawTitle = String(tabInfo.title || '').trim();
+    const url = rawUrl.toLowerCase();
+    const title = rawTitle.toLowerCase();
+    const isActDocumentUrl = this.isLikelyActDocumentUrl(rawUrl);
+
+    if (url === '' || url === 'about:blank') {
+      return FAILURE_REASONS.SITE_UNAVAILABLE;
+    }
+
+    if (url.startsWith('chrome-error://') || url.startsWith('chrome://')) {
+      return FAILURE_REASONS.SITE_UNAVAILABLE;
+    }
+
+    const notFoundTitlePatterns = [
+      /^404$/i,
+      /\b404\b.*\bnot found\b/i,
+      /\bnot found\b/i,
+      /page not found/i,
+      /requested page not found/i,
+      /does not exist/i,
+      /no such/i
+    ];
+
+    const unavailableTitlePatterns = [
+      /^500$/i,
+      /^502$/i,
+      /^503$/i,
+      /^504$/i,
+      /http status\s*5\d{2}/i,
+      /server error/i,
+      /internal server error/i,
+      /service unavailable/i,
+      /bad gateway/i,
+      /gateway timeout/i,
+      /connection refused/i,
+      /temporarily unavailable/i,
+      /timeout/i,
+      /timed out/i,
+      /err_/i,
+      /dns_probe/i,
+      /internet disconnected/i
+    ];
+
+    const notFoundUrlPatterns = [
+      /not[-_ ]?found/i,
+      /page[-_ ]?not[-_ ]?found/i
+    ];
+
+    const unavailableUrlPatterns = [
+      /err_/i,
+      /dns_probe/i,
+      /temporarily[-_ ]?unavailable/i,
+      /service[-_ ]?unavailable/i,
+      /gateway[-_ ]?timeout/i,
+      /bad[-_ ]?gateway/i
+    ];
+
+    if (notFoundTitlePatterns.some((pattern) => pattern.test(rawTitle))) {
+      return FAILURE_REASONS.ACT_NOT_FOUND;
+    }
+
+    if (unavailableTitlePatterns.some((pattern) => pattern.test(rawTitle))) {
+      return FAILURE_REASONS.SITE_UNAVAILABLE;
+    }
+
+    if (!isActDocumentUrl && notFoundUrlPatterns.some((pattern) => pattern.test(rawUrl))) {
+      return FAILURE_REASONS.ACT_NOT_FOUND;
+    }
+
+    if (!isActDocumentUrl && unavailableUrlPatterns.some((pattern) => pattern.test(rawUrl))) {
+      return FAILURE_REASONS.SITE_UNAVAILABLE;
+    }
+
+    if (/\berror\b/i.test(title) && !isActDocumentUrl) {
+      return FAILURE_REASONS.SITE_UNAVAILABLE;
+    }
+
+    return null;
+  },
+
+  /**
+   * Evaluate a serializable browser snapshot and determine whether the page is
+   * ready for extraction.
+   *
+   * @param {Object} snapshot
+   * @param {Object} options
+   * @param {number} [options.elapsedMs=0]
+   * @param {number} [options.timeoutMs=30000]
+   * @param {number} [options.minThreshold=100]
+   * @returns {{ready:boolean, reason?:string, signalType?:string, shouldWait?:boolean}}
+   */
+  assessReadinessSnapshot(snapshot, options = {}) {
+    const {
+      elapsedMs = 0,
+      timeoutMs = 30000,
+      minThreshold = 100
+    } = options;
+
+    const page = snapshot || {};
+    const readyState = page.readyState || '';
+    const domRendered = readyState === 'interactive' || readyState === 'complete';
+
+    if (elapsedMs > timeoutMs) {
+      return domRendered
+        ? { ready: false, reason: FAILURE_REASONS.CONTENT_SELECTOR_MISMATCH }
+        : { ready: false, reason: FAILURE_REASONS.DOM_NOT_READY };
+    }
+
+    if (!domRendered) {
+      return { ready: false, shouldWait: true };
+    }
+
+    if (page.hasActTitle) {
+      return { ready: true, signalType: 'act_title' };
+    }
+
+    if (page.hasEnactmentClause) {
+      return { ready: true, signalType: 'enactment_clause' };
+    }
+
+    if (page.hasFirstSection) {
+      return { ready: true, signalType: 'first_section' };
+    }
+
+    if (page.hasStructuralSignal) {
+      return { ready: true, signalType: 'dom_structure' };
+    }
+
+    if ((page.contentLength || 0) >= minThreshold && page.hasBodyLegalSignal) {
+      return { ready: true, signalType: 'content_threshold_with_signal' };
+    }
+
+    return { ready: false, shouldWait: true };
   },
 
   /**

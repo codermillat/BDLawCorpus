@@ -19,6 +19,10 @@
     // Title selectors - try multiple patterns
     title: [
       'h1',
+      '.bg-act-section h3',
+      '.boxed-layout h3',
+      '.boxed-layout h4',
+      '.text-center h3',
       '.act-title',
       '.law-title',
       '#act-title',

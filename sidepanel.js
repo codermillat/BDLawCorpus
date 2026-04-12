@@ -44,6 +44,23 @@
       failedCount: 0,
       retriedCount: 0
     },
+    filesystemSync: {
+      enabled: false,
+      folderName: null,
+      statusLabel: 'Disabled',
+      statusDetail: 'Enable sync to choose a folder.',
+      permission: null,
+      rootHandle: null,
+      manifest: null,
+      pendingCount: 0,
+      pendingActs: [],
+      pendingFailed: [],
+      isSyncing: false,
+      autoSyncPaused: false,
+      lastError: null,
+      lastSyncedAt: null,
+      syncTimerId: null
+    },
     // Durable Persistence Hardening state
     storageBackend: null,        // Requirements: 10.3 - Track current storage backend
     storageDegraded: false,      // Requirements: 10.4 - Track degraded mode
@@ -55,6 +72,13 @@
   // DOM ELEMENTS
   // ============================================
   const $ = (id) => document.getElementById(id);
+
+  function clearFilesystemSyncTimer() {
+    if (state.filesystemSync.syncTimerId) {
+      clearTimeout(state.filesystemSync.syncTimerId);
+      state.filesystemSync.syncTimerId = null;
+    }
+  }
 
   // ============================================
   // STORAGE HELPERS
@@ -286,6 +310,7 @@
       // NOTE: Captured acts are stored in IndexedDB via StorageManager.saveAct()
       // We no longer save state.capturedActs to chrome.storage.local to avoid quota issues
       // The in-memory state.capturedActs is populated from IndexedDB on load
+      scheduleFilesystemSync('state_saved');
     } catch (e) {
       console.error('Failed to save to storage:', e);
     }
@@ -709,6 +734,716 @@
       renderQueue();
     } else if (tabId === 'export') {
       updateExportStats();
+      updateFilesystemSyncUI();
+    }
+  }
+
+  function getFilesystemSyncComputedStatus() {
+    const formattedLastSyncedAt = state.filesystemSync.lastSyncedAt
+      ? new Date(state.filesystemSync.lastSyncedAt).toLocaleString()
+      : null;
+
+    return BDLawFilesystemSync.computeSyncStatus({
+      permission: state.filesystemSync.permission,
+      syncEnabled: state.filesystemSync.enabled,
+      folderName: state.filesystemSync.folderName,
+      isSyncing: state.filesystemSync.isSyncing,
+      lastError: state.filesystemSync.lastError,
+      pendingCount: state.filesystemSync.pendingCount || 0,
+      lastSyncedAt: formattedLastSyncedAt
+    });
+  }
+
+  function updateFilesystemSyncUI() {
+    const section = $('filesystemSyncSection');
+    const toggle = $('enableFilesystemSync');
+    const status = $('syncStatusLabel');
+    const statusBadge = $('syncStatusBadge');
+    const statusDetail = $('syncStatusDetail');
+    const folderName = $('syncFolderName');
+    const pendingSummary = $('syncPendingSummary');
+    const selectBtn = $('selectSyncFolderBtn');
+    const syncNowBtn = $('syncNowBtn');
+    const reconnectBtn = $('reconnectSyncFolderBtn');
+    const reconcileBtn = $('reconcileSyncFolderBtn');
+    const pauseBtn = $('pauseSyncBtn');
+
+    if (!section || !toggle || !status || !statusBadge || !statusDetail || !folderName || !pendingSummary || !selectBtn || !syncNowBtn || !reconnectBtn || !reconcileBtn || !pauseBtn) {
+      return;
+    }
+
+    const computedStatus = getFilesystemSyncComputedStatus();
+
+    toggle.checked = !!state.filesystemSync.enabled;
+    status.textContent = computedStatus.label;
+    statusDetail.textContent = computedStatus.detail;
+    statusBadge.textContent = computedStatus.label;
+    statusBadge.className = `sync-status-badge ${computedStatus.tone || 'neutral'}`;
+    folderName.textContent = state.filesystemSync.folderName || 'No folder selected';
+    pendingSummary.textContent = state.filesystemSync.pendingCount > 0
+      ? `${state.filesystemSync.pendingCount} pending sync item(s)`
+      : 'No pending sync items.';
+
+    const hasHandle = !!state.filesystemSync.rootHandle;
+    const permissionGranted = state.filesystemSync.permission === 'granted';
+    const busy = !!state.filesystemSync.isSyncing;
+
+    selectBtn.disabled = !state.filesystemSync.enabled || busy;
+    syncNowBtn.disabled = !state.filesystemSync.enabled || !hasHandle || !permissionGranted || busy;
+    reconnectBtn.disabled = !state.filesystemSync.enabled || !hasHandle || busy;
+    reconcileBtn.disabled = !state.filesystemSync.enabled || !hasHandle || !permissionGranted || busy;
+    pauseBtn.disabled = !state.filesystemSync.enabled || busy;
+    pauseBtn.querySelector('.btn-text').textContent = state.filesystemSync.autoSyncPaused ? 'Resume Auto Sync' : 'Pause Auto Sync';
+  }
+
+  async function queryFilesystemSyncPermission(handle, requestAccess = false) {
+    if (!handle) {
+      return null;
+    }
+
+    const descriptor = { mode: 'readwrite' };
+
+    if (typeof handle.queryPermission === 'function') {
+      const permission = await handle.queryPermission(descriptor);
+      if (permission === 'granted' || !requestAccess) {
+        return permission;
+      }
+    }
+
+    if (requestAccess && typeof handle.requestPermission === 'function') {
+      return handle.requestPermission(descriptor);
+    }
+
+    return 'granted';
+  }
+
+  async function loadFilesystemSyncManifestFromFolder() {
+    if (!state.filesystemSync.rootHandle || state.filesystemSync.permission !== 'granted') {
+      return BDLawSyncManifest.createEmptyManifest();
+    }
+
+    try {
+      const manifest = await BDLawFilesystemSync.readJsonFile(
+        state.filesystemSync.rootHandle,
+        BDLawFilesystemSync.getManifestPath()
+      );
+      return BDLawSyncManifest.ensureManifest(manifest);
+    } catch (e) {
+      console.warn('Failed to load sync manifest from folder, using empty manifest:', e);
+      return BDLawSyncManifest.createEmptyManifest();
+    }
+  }
+
+  function rebuildFilesystemSyncQueue() {
+    const queue = BDLawFilesystemSync.buildPendingSyncQueue({
+      capturedActs: state.capturedActs,
+      failedExtractions: state.failedExtractions,
+      manifest: state.filesystemSync.manifest,
+      syncState: {
+        sync_enabled: state.filesystemSync.enabled
+      }
+    });
+
+    state.filesystemSync.pendingActs = queue.pendingActs;
+    state.filesystemSync.pendingFailed = queue.pendingFailed;
+    state.filesystemSync.pendingCount = queue.pendingCount;
+    return queue;
+  }
+
+  async function persistFilesystemSyncState(writeToFolder = true) {
+    const syncState = {
+      sync_enabled: !!state.filesystemSync.enabled,
+      folder_name: state.filesystemSync.folderName || null,
+      permission: state.filesystemSync.permission || null,
+      last_synced_at: state.filesystemSync.lastSyncedAt || null,
+      last_error: state.filesystemSync.lastError || null,
+      auto_sync_paused: !!state.filesystemSync.autoSyncPaused,
+      pending_count: state.filesystemSync.pendingCount || 0,
+      updated_at: new Date().toISOString()
+    };
+
+    await StorageManager.saveSyncState(syncState);
+
+    if (writeToFolder && state.filesystemSync.rootHandle && state.filesystemSync.permission === 'granted') {
+      await BDLawFilesystemSync.writeJsonFile(
+        state.filesystemSync.rootHandle,
+        BDLawFilesystemSync.getStatePath(),
+        syncState,
+        true
+      );
+    }
+
+    return syncState;
+  }
+
+  async function appendFilesystemSyncLog(eventName, details = {}) {
+    if (!state.filesystemSync.rootHandle || state.filesystemSync.permission !== 'granted') {
+      return;
+    }
+
+    await BDLawFilesystemSync.appendNdjson(
+      state.filesystemSync.rootHandle,
+      BDLawFilesystemSync.getSyncLogPath(),
+      {
+        timestamp: new Date().toISOString(),
+        event: eventName,
+        details
+      }
+    );
+  }
+
+  async function flushAuditLogToFilesystem() {
+    if (!state.filesystemSync.rootHandle || state.filesystemSync.permission !== 'granted') {
+      return 0;
+    }
+
+    const auditEntries = await StorageManager.getAuditLog();
+    const ndjson = auditEntries.length > 0
+      ? auditEntries.map((entry) => JSON.stringify(entry)).join('\n') + '\n'
+      : '';
+
+    await BDLawFilesystemSync.writeTextFile(
+      state.filesystemSync.rootHandle,
+      BDLawFilesystemSync.getAuditLogPath(),
+      ndjson
+    );
+
+    return ndjson.length;
+  }
+
+  async function ensureFilesystemSyncFolderStructure() {
+    if (!state.filesystemSync.rootHandle) {
+      return;
+    }
+
+    await BDLawFilesystemSync.ensureDirectory(state.filesystemSync.rootHandle, ['acts']);
+    await BDLawFilesystemSync.ensureDirectory(state.filesystemSync.rootHandle, ['failed']);
+    await BDLawFilesystemSync.ensureDirectory(state.filesystemSync.rootHandle, ['logs']);
+    await BDLawFilesystemSync.ensureDirectory(state.filesystemSync.rootHandle, ['manifests']);
+  }
+
+  function scheduleFilesystemSync(reason = 'state_change') {
+    if (!state.filesystemSync.enabled || state.filesystemSync.autoSyncPaused) {
+      return;
+    }
+
+    clearFilesystemSyncTimer();
+    state.filesystemSync.syncTimerId = setTimeout(() => {
+      flushFilesystemSyncQueue({ reason, manual: false }).catch((error) => {
+        console.error('Scheduled filesystem sync failed:', error);
+      });
+    }, 300);
+  }
+
+  async function initializeFilesystemSync() {
+    try {
+      const storedState = await StorageManager.loadSyncState();
+      const storedHandle = await StorageManager.loadSyncDirectoryHandle();
+
+      if (storedState) {
+        state.filesystemSync.enabled = !!storedState.sync_enabled;
+        state.filesystemSync.folderName = storedState.folder_name || null;
+        state.filesystemSync.lastSyncedAt = storedState.last_synced_at || null;
+        state.filesystemSync.lastError = storedState.last_error || null;
+        state.filesystemSync.permission = storedState.permission || null;
+        state.filesystemSync.autoSyncPaused = !!storedState.auto_sync_paused;
+      }
+
+      if (storedHandle) {
+        state.filesystemSync.rootHandle = storedHandle;
+        state.filesystemSync.folderName = state.filesystemSync.folderName || storedHandle.name || 'Selected folder';
+        state.filesystemSync.permission = await queryFilesystemSyncPermission(storedHandle, false);
+      }
+
+      state.filesystemSync.manifest = await loadFilesystemSyncManifestFromFolder();
+      rebuildFilesystemSyncQueue();
+      updateFilesystemSyncUI();
+
+      if (state.filesystemSync.enabled && state.filesystemSync.permission === 'granted' && state.filesystemSync.pendingCount > 0 && !state.filesystemSync.autoSyncPaused) {
+        scheduleFilesystemSync('startup_resume');
+      }
+    } catch (e) {
+      console.error('Failed to initialize filesystem sync:', e);
+      state.filesystemSync.lastError = e.message;
+      updateFilesystemSyncUI();
+    }
+  }
+
+  async function handleFilesystemSyncToggle(event) {
+    state.filesystemSync.enabled = !!event?.target?.checked;
+    state.filesystemSync.lastError = null;
+
+    if (state.filesystemSync.enabled && state.filesystemSync.rootHandle) {
+      state.filesystemSync.permission = await queryFilesystemSyncPermission(state.filesystemSync.rootHandle, false);
+    }
+
+    rebuildFilesystemSyncQueue();
+    await persistFilesystemSyncState(false);
+    updateFilesystemSyncUI();
+
+    if (state.filesystemSync.enabled && state.filesystemSync.permission === 'granted' && !state.filesystemSync.autoSyncPaused) {
+      scheduleFilesystemSync('toggle_enabled');
+    }
+  }
+
+  async function handleSelectSyncFolder() {
+    if (typeof window.showDirectoryPicker !== 'function') {
+      state.filesystemSync.lastError = 'This browser profile does not support folder selection in the side panel.';
+      updateFilesystemSyncUI();
+      return;
+    }
+
+    try {
+      const handle = await window.showDirectoryPicker({ mode: 'readwrite' });
+      const permission = await queryFilesystemSyncPermission(handle, true);
+
+      state.filesystemSync.rootHandle = handle;
+      state.filesystemSync.folderName = handle.name || 'Selected folder';
+      state.filesystemSync.permission = permission;
+      state.filesystemSync.enabled = true;
+      state.filesystemSync.lastError = null;
+      state.filesystemSync.autoSyncPaused = false;
+
+      await StorageManager.saveSyncDirectoryHandle(handle);
+      await ensureFilesystemSyncFolderStructure();
+      state.filesystemSync.manifest = await loadFilesystemSyncManifestFromFolder();
+      rebuildFilesystemSyncQueue();
+      await persistFilesystemSyncState(true);
+      await appendFilesystemSyncLog('folder_selected', {
+        folder_name: state.filesystemSync.folderName
+      });
+      updateFilesystemSyncUI();
+
+      if (state.filesystemSync.pendingCount > 0) {
+        scheduleFilesystemSync('folder_selected');
+      }
+    } catch (e) {
+      if (e && e.name === 'AbortError') {
+        return;
+      }
+      console.error('Failed to select sync folder:', e);
+      state.filesystemSync.lastError = e.message || 'Unable to select sync folder.';
+      updateFilesystemSyncUI();
+    }
+  }
+
+  async function handleReconnectSyncFolder() {
+    if (!state.filesystemSync.rootHandle) {
+      await handleSelectSyncFolder();
+      return;
+    }
+
+    try {
+      state.filesystemSync.permission = await queryFilesystemSyncPermission(state.filesystemSync.rootHandle, true);
+      state.filesystemSync.lastError = null;
+      state.filesystemSync.manifest = await loadFilesystemSyncManifestFromFolder();
+      rebuildFilesystemSyncQueue();
+      await persistFilesystemSyncState(true);
+      await appendFilesystemSyncLog('folder_reconnected', {
+        folder_name: state.filesystemSync.folderName
+      });
+      updateFilesystemSyncUI();
+    } catch (e) {
+      console.error('Failed to reconnect sync folder:', e);
+      state.filesystemSync.lastError = e.message || 'Unable to reconnect folder.';
+      updateFilesystemSyncUI();
+    }
+  }
+
+  async function buildSingleActExportData(act, options = {}) {
+    if (!act) {
+      throw new Error('No act data provided.');
+    }
+
+    const includeMetadata = options.includeMetadata ?? $('includeMetadata').checked;
+    const applyTextCleaning = options.applyTextCleaning ?? ($('applyTextCleaning')?.checked || false);
+
+    const rawCounts = act.sections?.counts || {
+      'ধারা': 0,
+      'অধ্যায়': 0,
+      'তফসিল': 0
+    };
+
+    const threeVersionContent = act.content
+      ? BDLawExtractor.createThreeVersionContent(act.content)
+      : { content_raw: '', content_normalized: '', content_corrected: '' };
+
+    let transformationLog = act.transformation_log || [];
+    const titlePreservation = act.title
+      ? BDLawExtractor.createTitlePreservation(act.title)
+      : { title_raw: '', title_normalized: '' };
+
+    const numericRegions = act.numeric_regions ||
+      (threeVersionContent.content_raw ? BDLawExtractor.detectNumericRegions(threeVersionContent.content_raw) : []);
+
+    const protectedSectionsResult = act.protected_sections_result ||
+      (threeVersionContent.content_raw ? BDLawExtractor.detectProtectedSections(threeVersionContent.content_raw) : { protected_sections: [], regions: [] });
+
+    const crossReferences = threeVersionContent.content_raw
+      ? BDLawExtractor.detectCrossReferences(threeVersionContent.content_raw)
+      : [];
+
+    const lexicalReferences = BDLawExtractor.getLexicalReferencesMetadata(
+      crossReferences.map(ref => ({
+        citation_text: ref.citation_text,
+        lexical_relation_type: ref.lexical_relation_type || 'mention',
+        lexical_relation_confidence: ref.lexical_relation_confidence || 'low',
+        negation_present: ref.negation_present || false,
+        negation_word: ref.negation_word || null,
+        negation_context: ref.negation_context || null,
+        position: ref.position,
+        context_before: ref.context_before,
+        context_after: ref.context_after
+      }))
+    );
+
+    const dataQuality = threeVersionContent.content_raw
+      ? BDLawQuality.validateContentQuality(threeVersionContent.content_raw, null, {
+          hasNumericCorruptionRisk: numericRegions.length > 0 && act.has_numeric_corruption_risk,
+          hasEncodingAmbiguity: act.has_encoding_ambiguity,
+          hasMissingSchedules: act.has_missing_schedules,
+          hasHeavyOcrCorrection: act.has_heavy_ocr_correction,
+          numericRegions,
+          protectedRegions: protectedSectionsResult.regions
+        })
+      : BDLawQuality.createEmptyAssessment();
+
+    let cleaningTransformations = [];
+
+    if (applyTextCleaning && threeVersionContent.content_normalized) {
+      const cleaningResult = BDLawQuality.cleanContent(threeVersionContent.content_normalized, {
+        applyEncodingRepairs: true,
+        applyOcrCorrections: true,
+        applyFormatting: true,
+        dryRun: false,
+        numericRegions,
+        protectedRegions: protectedSectionsResult.regions
+      });
+
+      threeVersionContent.content_corrected = cleaningResult.cleaned;
+      cleaningTransformations = cleaningResult.transformations;
+
+      for (const transform of cleaningTransformations) {
+        transformationLog.push({
+          transformation_type: transform.type === 'encoding_repair' ? 'encoding_fix' :
+                               transform.type === 'ocr_correction' ? 'ocr_correction' :
+                               transform.type === 'formatting' ? 'formatting' : transform.type,
+          original: transform.incorrect || transform.rule || '',
+          corrected: transform.correct || transform.replacement || '',
+          position: 0,
+          risk_level: BDLawExtractor.getRiskLevel(transform.type === 'ocr_correction' ? 'ocr_correction' : 'encoding_fix'),
+          applied: transform.applied !== false,
+          timestamp: new Date().toISOString()
+        });
+      }
+
+      if (cleaningResult.flaggedInProtectedSections && cleaningResult.flaggedInProtectedSections.length > 0) {
+        for (const flagged of cleaningResult.flaggedInProtectedSections) {
+          transformationLog.push({
+            transformation_type: 'ocr_correction',
+            original: flagged.incorrect,
+            corrected: flagged.correct,
+            position: flagged.position,
+            risk_level: 'potential-semantic',
+            applied: false,
+            timestamp: new Date().toISOString(),
+            reason: 'protected_section_enforcement'
+          });
+        }
+      }
+
+      if (cleaningTransformations.length > 0 && !dataQuality.flags.includes('cleaning_applied')) {
+        dataQuality.flags.push('cleaning_applied');
+      }
+    }
+
+    const numericRepresentation = act.numeric_representation ||
+      (threeVersionContent.content_raw ? BDLawExtractor.detectNumericRepresentation
+        ? BDLawExtractor.detectNumericRepresentation(threeVersionContent.content_raw)
+        : { numeric_representation: [], bn_digit_count: 0, en_digit_count: 0, is_mixed: false }
+      : { numeric_representation: [], bn_digit_count: 0, en_digit_count: 0, is_mixed: false });
+
+    const languageDistribution = act.language_distribution ||
+      (threeVersionContent.content_raw ? BDLawExtractor.calculateLanguageDistribution
+        ? BDLawExtractor.calculateLanguageDistribution(threeVersionContent.content_raw)
+        : { bn_ratio: 0, en_ratio: 0 }
+      : { bn_ratio: 0, en_ratio: 0 });
+
+    const editorialContent = act.editorial_content ||
+      (threeVersionContent.content_raw ? BDLawExtractor.detectEditorialContent
+        ? BDLawExtractor.detectEditorialContent(threeVersionContent.content_raw)
+        : { editorial_content_present: false, editorial_types: [] }
+      : { editorial_content_present: false, editorial_types: [] });
+
+    let contentHashResult = { content_hash: null, hash_source: 'content_raw' };
+    try {
+      contentHashResult = await BDLawExtractor.computeContentHash(threeVersionContent);
+    } catch (e) {
+      console.error('Content hash computation failed:', e);
+      contentHashResult = { content_hash: null, hash_source: 'content_raw', error: e.message };
+    }
+
+    const exportAct = {
+      identifiers: {
+        internal_id: act.actNumber,
+        note: 'internal_id is the bdlaws database identifier, not the legal citation number'
+      },
+      title_raw: titlePreservation.title_raw,
+      title_normalized: titlePreservation.title_normalized,
+      content_raw: threeVersionContent.content_raw,
+      content_normalized: threeVersionContent.content_normalized,
+      content_corrected: threeVersionContent.content_corrected,
+      url: act.url,
+      volume_number: act.volumeNumber || 'unknown',
+      legal_status: act.legal_status || 'unknown',
+      temporal_status: BDLawExtractor.TEMPORAL_STATUS,
+      temporal_disclaimer: BDLawExtractor.TEMPORAL_DISCLAIMER,
+      lexical_references: lexicalReferences,
+      schedules: act.schedules || {
+        representation: 'raw_html',
+        extraction_method: 'verbatim_dom_capture',
+        processed: false,
+        html_content: null
+      },
+      transformation_log: transformationLog,
+      protected_sections: protectedSectionsResult.protected_sections,
+      numeric_regions: numericRegions.map(region => ({
+        start: region.start,
+        end: region.end,
+        type: region.type,
+        numeric_integrity_sensitive: true
+      })),
+      data_quality: {
+        completeness: dataQuality.completeness,
+        completeness_disclaimer: dataQuality.completeness_disclaimer || 'Website representation incomplete; legal completeness unknown',
+        flags: dataQuality.flags,
+        ml_risk_factors: dataQuality.risks || [],
+        known_limitations: dataQuality.known_limitations || [],
+        ml_usage_warning: BDLawExtractor.ML_USAGE_WARNING
+      },
+      extraction_risk: act.extraction_risk || {
+        possible_truncation: false,
+        reason: 'none'
+      },
+      numeric_representation: numericRepresentation.numeric_representation || [],
+      language_distribution: {
+        bn_ratio: languageDistribution.bn_ratio || 0,
+        en_ratio: languageDistribution.en_ratio || 0
+      },
+      editorial_content_present: editorialContent.editorial_content_present || false,
+      source_authority: BDLawExtractor.SOURCE_AUTHORITY,
+      authority_rank: BDLawExtractor.AUTHORITY_RANK,
+      marker_frequency: {
+        'ধারা': {
+          count: rawCounts['ধারা'] || 0,
+          method: 'raw string frequency, including cross-references'
+        },
+        'অধ্যায়': {
+          count: rawCounts['অধ্যায়'] || 0,
+          method: 'raw string frequency'
+        },
+        'তফসিল': {
+          count: rawCounts['তফসিল'] || 0,
+          method: 'raw string frequency, including schedule references'
+        }
+      },
+      html_capture_definition: BDLawExtractor.HTML_CAPTURE_DEFINITION,
+      dom_extraction_method: BDLawExtractor.DOM_EXTRACTION_METHOD,
+      capture_environment: BDLawExtractor.CAPTURE_ENVIRONMENT,
+      content_raw_disclaimer: BDLawExtractor.CONTENT_RAW_DISCLAIMER,
+      content_raw_sha256: contentHashResult.content_hash
+        ? contentHashResult.content_hash.replace(/^sha256:/, '')
+        : null,
+      reference_semantics: BDLawExtractor.REFERENCE_SEMANTICS,
+      reference_warning: BDLawExtractor.REFERENCE_WARNING,
+      negation_handling: BDLawExtractor.NEGATION_HANDLING,
+      numeric_integrity: BDLawExtractor.NUMERIC_INTEGRITY,
+      numeric_warning: BDLawExtractor.NUMERIC_WARNING,
+      encoding_policy: BDLawExtractor.ENCODING_POLICY,
+      encoding_scope: BDLawExtractor.ENCODING_SCOPE,
+      trust_boundary: BDLawExtractor.TRUST_BOUNDARY
+    };
+
+    if (cleaningTransformations.length > 0) {
+      exportAct.formatting_scope = BDLawExtractor.FORMATTING_SCOPE;
+    }
+
+    if (includeMetadata) {
+      const metadata = act.metadata ? { ...act.metadata } : BDLawMetadata.generate(act.url);
+      metadata.extracted_at = act.capturedAt || new Date().toISOString();
+      metadata.content_hash = contentHashResult.content_hash;
+      metadata.hash_source = contentHashResult.hash_source;
+      metadata.schema_version = '3.1';
+      exportAct._metadata = metadata;
+    }
+
+    return exportAct;
+  }
+
+  function buildFailedActExportData(failedEntry) {
+    const exportData = BDLawQueue.formatFailedActForExport(failedEntry);
+    exportData.trust_boundary = {
+      can_trust: [
+        'Text extraction was attempted at the recorded timestamps',
+        'Failure reasons are accurately recorded',
+        'No content inference or auto-correction was applied'
+      ],
+      must_not_trust: [
+        'Content availability (extraction failed)',
+        'Legal validity',
+        'Completeness'
+      ]
+    };
+    return exportData;
+  }
+
+  async function flushFilesystemSyncQueue(options = {}) {
+    const { manual = false, reason = 'manual_sync' } = options;
+
+    if (state.filesystemSync.isSyncing) {
+      return;
+    }
+
+    if (!state.filesystemSync.enabled) {
+      updateFilesystemSyncUI();
+      return;
+    }
+
+    if (state.filesystemSync.autoSyncPaused && !manual) {
+      updateFilesystemSyncUI();
+      return;
+    }
+
+    if (!state.filesystemSync.rootHandle) {
+      state.filesystemSync.lastError = 'Select a sync folder before syncing.';
+      updateFilesystemSyncUI();
+      return;
+    }
+
+    clearFilesystemSyncTimer();
+
+    try {
+      state.filesystemSync.permission = await queryFilesystemSyncPermission(state.filesystemSync.rootHandle, manual);
+      if (state.filesystemSync.permission !== 'granted') {
+        state.filesystemSync.lastError = 'Folder permission is required to sync files.';
+        await persistFilesystemSyncState(false);
+        updateFilesystemSyncUI();
+        return;
+      }
+
+      state.filesystemSync.isSyncing = true;
+      state.filesystemSync.lastError = null;
+      updateFilesystemSyncUI();
+
+      await ensureFilesystemSyncFolderStructure();
+      let manifest = await loadFilesystemSyncManifestFromFolder();
+      state.filesystemSync.manifest = manifest;
+      const pendingQueue = rebuildFilesystemSyncQueue();
+
+      for (const act of pendingQueue.pendingActs) {
+        const exportPayload = await buildSingleActExportData(act, {
+          includeMetadata: true,
+          applyTextCleaning: $('applyTextCleaning')?.checked || false
+        });
+        const actNumber = String(act.actNumber || act.act_number || exportPayload.identifiers?.internal_id || '');
+        const actJson = JSON.stringify(exportPayload, null, 2);
+
+        await BDLawFilesystemSync.writeSuccessfulAct(state.filesystemSync.rootHandle, actNumber, actJson);
+        await BDLawFilesystemSync.reconcileActTransition(state.filesystemSync.rootHandle, {
+          actNumber,
+          becameSuccessful: true
+        });
+
+        manifest = BDLawSyncManifest.updateManifestForSuccessfulAct(
+          manifest,
+          actNumber,
+          exportPayload.content_raw_sha256,
+          {
+            path: BDLawFilesystemSync.getActPath(actNumber),
+            title: act.title,
+            synced_at: new Date().toISOString()
+          }
+        );
+
+        await appendFilesystemSyncLog('act_synced', { act_number: actNumber, reason });
+      }
+
+      for (const failedEntry of pendingQueue.pendingFailed) {
+        const failedPayload = buildFailedActExportData(failedEntry);
+        const actNumber = String(failedEntry.act_number || failedEntry.actNumber || '');
+        const failedJson = JSON.stringify(failedPayload, null, 2);
+
+        await BDLawFilesystemSync.writeFailedAct(state.filesystemSync.rootHandle, actNumber, failedJson);
+
+        manifest = BDLawSyncManifest.updateManifestForFailedAct(
+          manifest,
+          failedEntry,
+          {
+            path: BDLawFilesystemSync.getFailedPath(actNumber),
+            synced_at: new Date().toISOString()
+          }
+        );
+
+        await appendFilesystemSyncLog('failed_act_synced', {
+          act_number: actNumber,
+          failure_reason: failedEntry.failure_reason,
+          reason
+        });
+      }
+
+      const auditLogBytes = await flushAuditLogToFilesystem();
+      const syncLogText = await BDLawFilesystemSync.readTextFile(state.filesystemSync.rootHandle, BDLawFilesystemSync.getSyncLogPath());
+      manifest = BDLawSyncManifest.updateLogStats(manifest, {
+        audit_log_bytes: auditLogBytes,
+        sync_log_bytes: syncLogText ? syncLogText.length : 0
+      });
+
+      await BDLawFilesystemSync.writeJsonFile(
+        state.filesystemSync.rootHandle,
+        BDLawFilesystemSync.getManifestPath(),
+        manifest,
+        true
+      );
+
+      state.filesystemSync.manifest = manifest;
+      state.filesystemSync.lastSyncedAt = new Date().toISOString();
+      rebuildFilesystemSyncQueue();
+      await persistFilesystemSyncState(true);
+      updateFilesystemSyncUI();
+    } catch (e) {
+      console.error('Filesystem sync failed:', e);
+      state.filesystemSync.lastError = e.message || 'Filesystem sync failed.';
+      try {
+        await appendFilesystemSyncLog('sync_error', {
+          message: state.filesystemSync.lastError,
+          reason
+        });
+      } catch (logError) {
+        console.warn('Failed to append sync error log:', logError);
+      }
+      await persistFilesystemSyncState(false);
+      updateFilesystemSyncUI();
+    } finally {
+      state.filesystemSync.isSyncing = false;
+      updateFilesystemSyncUI();
+    }
+  }
+
+  async function handleSyncNow() {
+    await flushFilesystemSyncQueue({ manual: true, reason: 'manual_sync' });
+  }
+
+  async function handleReconcileSyncFolder() {
+    await flushFilesystemSyncQueue({ manual: true, reason: 'manual_reconcile' });
+  }
+
+  async function handlePauseSync() {
+    state.filesystemSync.autoSyncPaused = !state.filesystemSync.autoSyncPaused;
+    await persistFilesystemSyncState(false);
+    updateFilesystemSyncUI();
+
+    if (!state.filesystemSync.autoSyncPaused) {
+      scheduleFilesystemSync('resume_auto_sync');
     }
   }
 
@@ -1919,69 +2654,86 @@
   // ============================================
   
   /**
-   * Check for legal content signals in page
-   * Requirements: 2.2, 2.3, 2.8
-   * 
-   * Checks for presence of legal content indicators:
-   * - Act title presence
-   * - Enactment clause (EN: "It is hereby enacted", BN: "এতদ্দ্বারা প্রণীত")
-   * - First numbered section (EN: "1." or BN: "১.")
-   * 
+   * Collect a serializable DOM readiness snapshot for queue classification.
+   * This snapshot is intentionally minimal so the actual decision logic can live
+   * in BDLawQueue and be tested outside the browser.
+   *
    * @param {number} tabId - Chrome tab ID
-   * @returns {Promise<Object>} { hasSignal: boolean, signalType?: string, error?: string }
+   * @returns {Promise<Object>} Snapshot consumed by BDLawQueue.assessReadinessSnapshot()
    */
-  async function checkLegalContentSignals(tabId) {
+  async function collectReadinessSnapshot(tabId) {
     const { LEGAL_CONTENT_SIGNALS } = BDLawQueue;
     
     try {
       const [{ result }] = await chrome.scripting.executeScript({
         target: { tabId },
-        func: (titleSelectors, enactmentPatternStrings, sectionPatternStrings) => {
-          // Check for act title
-          for (const sel of titleSelectors) {
+        func: (titleSelectors, enactmentPatterns, sectionPatterns, structuralSelectors) => {
+          const safeHasNonEmptyText = (selector) => {
             try {
-              const el = document.querySelector(sel);
-              if (el && el.textContent && el.textContent.trim().length > 0) {
-                return { hasSignal: true, signalType: 'act_title' };
+              if (selector === 'title') {
+                return !!(document.title && document.title.trim().length > 0);
               }
+              const el = document.querySelector(selector);
+              return !!(el && el.textContent && el.textContent.trim().length > 0);
             } catch (e) {
-              // Invalid selector, skip
+              return false;
             }
-          }
-          
-          // Get body text for pattern matching (using textContent per legal-integrity-rules)
+          };
+
+          const safeHasAnyMatch = (selector) => {
+            try {
+              return document.querySelector(selector) !== null;
+            } catch (e) {
+              return false;
+            }
+          };
+
+          const readyState = document.readyState;
           const bodyText = document.body?.textContent || '';
-          
-          // Check for enactment clause (English or Bengali)
-          for (const patternStr of enactmentPatternStrings) {
-            const pattern = new RegExp(patternStr.source, patternStr.flags);
-            if (pattern.test(bodyText)) {
-              return { hasSignal: true, signalType: 'enactment_clause' };
-            }
-          }
-          
-          // Check for first numbered section (English or Bengali)
-          for (const patternStr of sectionPatternStrings) {
-            const pattern = new RegExp(patternStr.source, patternStr.flags);
-            if (pattern.test(bodyText)) {
-              return { hasSignal: true, signalType: 'first_section' };
-            }
-          }
-          
-          return { hasSignal: false };
+
+          const hasActTitle = titleSelectors.some(safeHasNonEmptyText);
+          const hasEnactmentClause = enactmentPatterns
+            .map((r) => new RegExp(r.source, r.flags))
+            .some((pattern) => pattern.test(bodyText));
+          const hasFirstSection = sectionPatterns
+            .map((r) => new RegExp(r.source, r.flags))
+            .some((pattern) => pattern.test(bodyText));
+          const hasStructuralSignal = structuralSelectors.some(safeHasAnyMatch);
+          const hasBodyLegalSignal =
+            /[০-৯]+৷/.test(bodyText) ||
+            /ধারা/.test(bodyText) ||
+            /যেহেতু/.test(bodyText) ||
+            /সেহেতু/.test(bodyText) ||
+            /তফসিল/.test(bodyText) ||
+            /অধ্যায়/.test(bodyText) ||
+            /\bSection\b/i.test(bodyText) ||
+            /\bChapter\b/i.test(bodyText) ||
+            /\bSchedule\b/i.test(bodyText) ||
+            /\bWHEREAS\b/i.test(bodyText) ||
+            /\bBe\s+it\s+enacted\b/i.test(bodyText);
+
+          return {
+            readyState,
+            hasActTitle,
+            hasEnactmentClause,
+            hasFirstSection,
+            hasStructuralSignal,
+            hasBodyLegalSignal,
+            contentLength: bodyText.length
+          };
         },
         args: [
           LEGAL_CONTENT_SIGNALS.ACT_TITLE_SELECTORS,
-          // Convert RegExp to serializable format
           LEGAL_CONTENT_SIGNALS.ENACTMENT_PATTERNS.map(r => ({ source: r.source, flags: r.flags })),
-          LEGAL_CONTENT_SIGNALS.SECTION_PATTERNS.map(r => ({ source: r.source, flags: r.flags }))
+          LEGAL_CONTENT_SIGNALS.SECTION_PATTERNS.map(r => ({ source: r.source, flags: r.flags })),
+          LEGAL_CONTENT_SIGNALS.STRUCTURAL_SELECTORS
         ]
       });
-      
+
       return result;
     } catch (e) {
-      console.error('Legal content signal check error:', e);
-      return { hasSignal: false, error: e.message };
+      console.error('Failed to collect readiness snapshot:', e);
+      throw e;
     }
   }
 
@@ -2005,107 +2757,40 @@
    * @returns {Promise<Object>} { ready: boolean, reason?: string, signalType?: string }
    */
   async function waitForExtractionReadiness(tabId, timeoutMs = 30000, minThreshold = 100) {
-    const { FAILURE_REASONS } = BDLawQueue;
     const startTime = Date.now();
-    let domInteractive = false; // Track if DOM is at least interactive
     
     return new Promise((resolve) => {
       const checkReadiness = async () => {
         const elapsedMs = Date.now() - startTime;
         
-        // Check if timeout exceeded
-        if (elapsedMs > timeoutMs) {
-          // Distinguish between dom_not_ready and content_selector_mismatch
-          if (domInteractive) {
-            // DOM was interactive but no legal content signals detected
-            resolve({ ready: false, reason: FAILURE_REASONS.CONTENT_SELECTOR_MISMATCH });
-          } else {
-            // DOM never became interactive - true timeout
-            resolve({ ready: false, reason: FAILURE_REASONS.DOM_NOT_READY });
-          }
-          return;
-        }
-        
         try {
-          // Step 1: Check document.readyState
-          // FIXED: Accept "interactive" OR "complete" - do NOT require "complete"
-          // Many bdlaws pages render content before "complete" due to hanging resources
-          const [{ result: readyState }] = await chrome.scripting.executeScript({
-            target: { tabId },
-            func: () => document.readyState
+          const snapshot = await collectReadinessSnapshot(tabId);
+          const readiness = BDLawQueue.assessReadinessSnapshot(snapshot, {
+            elapsedMs,
+            timeoutMs,
+            minThreshold
           });
-          
-          const readyStateOk = readyState === 'interactive' || readyState === 'complete';
-          
-          if (!readyStateOk) {
-            // Still loading, wait
+
+          if (readiness.ready || readiness.reason) {
+            resolve(readiness);
+            return;
+          }
+
+          if (readiness.shouldWait) {
             setTimeout(checkReadiness, 500);
             return;
           }
-          
-          // Mark DOM as interactive once we reach interactive or complete
-          domInteractive = true;
-          
-          // Step 2: Check for legal content signals
-          // Requirements: 2.2, 2.3, 2.8 - Verify at least one legal content signal
-          const signalResult = await checkLegalContentSignals(tabId);
-          
-          if (signalResult.hasSignal) {
-            // Legal signal found - page is ready for extraction
-            resolve({ ready: true, signalType: signalResult.signalType });
-            return;
-          }
-          
-          // Step 3: Fallback - check minimum content threshold with legal signal in body
-          const [{ result: fallbackResult }] = await chrome.scripting.executeScript({
-            target: { tabId },
-            func: (threshold) => {
-              const bodyText = document.body?.textContent || '';
-              const contentLength = bodyText.length;
-              
-              // Check for any legal signal in body text
-              // Bengali legal markers
-              const hasLegalSignal = 
-                /[০-৯]+৷/.test(bodyText) ||           // Bengali numeral + danda
-                /ধারা/.test(bodyText) ||              // Section marker
-                /যেহেতু/.test(bodyText) ||            // Preamble
-                /সেহেতু/.test(bodyText) ||            // Enactment
-                /তফসিল/.test(bodyText) ||             // Schedule
-                /অধ্যায়/.test(bodyText) ||            // Chapter
-                /\bSection\b/i.test(bodyText) ||      // English section
-                /\bChapter\b/i.test(bodyText) ||      // English chapter
-                /\bSchedule\b/i.test(bodyText) ||     // English schedule
-                /\bWHEREAS\b/i.test(bodyText) ||      // English preamble
-                /\bBe\s+it\s+enacted\b/i.test(bodyText); // English enactment
-              
-              return { contentLength, hasLegalSignal };
-            },
-            args: [minThreshold]
-          });
-          
-          if (fallbackResult.contentLength >= minThreshold && fallbackResult.hasLegalSignal) {
-            resolve({ ready: true, signalType: 'content_threshold_with_signal' });
-            return;
-          }
-          
-          // No signals detected yet, keep waiting if within timeout
-          if (elapsedMs < timeoutMs) {
-            setTimeout(checkReadiness, 500);
-            return;
-          }
-          
-          // Timeout reached with DOM interactive but no legal signals
-          resolve({ ready: false, reason: FAILURE_REASONS.CONTENT_SELECTOR_MISMATCH });
-          
+
+          resolve(readiness);
         } catch (e) {
           // Handle Chrome error page injection failure
           if (e.message && e.message.includes('showing error page')) {
             console.error('Tab is showing error page, cannot inject script:', e);
-            resolve({ ready: false, reason: FAILURE_REASONS.NETWORK_ERROR });
+            resolve({ ready: false, reason: BDLawQueue.FAILURE_REASONS.NETWORK_ERROR });
             return;
           }
           console.error('Extraction readiness check error:', e);
-          resolve({ ready: false, reason: FAILURE_REASONS.NETWORK_ERROR });
+          resolve({ ready: false, reason: BDLawQueue.FAILURE_REASONS.NETWORK_ERROR });
         }
       };
       
@@ -2666,65 +3351,7 @@
    * @returns {string|null}
    */
   function classifyErrorPageFailure(tabInfo) {
-    const { FAILURE_REASONS } = BDLawQueue;
-
-    if (!tabInfo) return FAILURE_REASONS.SITE_UNAVAILABLE;
-
-    const rawUrl = tabInfo.url || '';
-    const rawTitle = tabInfo.title || '';
-    const url = rawUrl.toLowerCase();
-    const title = rawTitle.toLowerCase();
-
-    // Empty/blank pages typically indicate load/network failures.
-    if (url === '' || url === 'about:blank') {
-      return FAILURE_REASONS.SITE_UNAVAILABLE;
-    }
-
-    // Chrome internal error pages are always transient/unavailable conditions.
-    if (url.startsWith('chrome-error://') || url.startsWith('chrome://')) {
-      return FAILURE_REASONS.SITE_UNAVAILABLE;
-    }
-
-    const notFoundPatterns = [
-      /\b404\b/i,
-      /not found/i,
-      /page not found/i,
-      /does not exist/i,
-      /no such/i
-    ];
-
-    const unavailablePatterns = [
-      /\b500\b/i,
-      /\b502\b/i,
-      /\b503\b/i,
-      /\b504\b/i,
-      /server error/i,
-      /service unavailable/i,
-      /bad gateway/i,
-      /gateway timeout/i,
-      /connection refused/i,
-      /temporarily unavailable/i,
-      /timeout/i,
-      /timed out/i,
-      /err_/i,
-      /dns_probe/i,
-      /internet disconnected/i
-    ];
-
-    if (notFoundPatterns.some((pattern) => pattern.test(title) || pattern.test(url))) {
-      return FAILURE_REASONS.ACT_NOT_FOUND;
-    }
-
-    if (unavailablePatterns.some((pattern) => pattern.test(title) || pattern.test(url))) {
-      return FAILURE_REASONS.SITE_UNAVAILABLE;
-    }
-
-    // Generic title "error" is treated as availability issue by default.
-    if (/\berror\b/i.test(title)) {
-      return FAILURE_REASONS.SITE_UNAVAILABLE;
-    }
-
-    return null;
+    return BDLawQueue.classifyTabFailure(tabInfo);
   }
 
   /**
@@ -5205,6 +5832,37 @@
     if (exportAuditLogBtn) {
       exportAuditLogBtn.addEventListener('click', handleExportAuditLog);
     }
+
+    const enableFilesystemSync = $('enableFilesystemSync');
+    if (enableFilesystemSync) {
+      enableFilesystemSync.addEventListener('change', handleFilesystemSyncToggle);
+    }
+
+    const selectSyncFolderBtn = $('selectSyncFolderBtn');
+    if (selectSyncFolderBtn) {
+      selectSyncFolderBtn.addEventListener('click', handleSelectSyncFolder);
+    }
+
+    const syncNowBtn = $('syncNowBtn');
+    if (syncNowBtn) {
+      syncNowBtn.addEventListener('click', handleSyncNow);
+    }
+
+    const reconnectSyncFolderBtn = $('reconnectSyncFolderBtn');
+    if (reconnectSyncFolderBtn) {
+      reconnectSyncFolderBtn.addEventListener('click', handleReconnectSyncFolder);
+    }
+
+    const reconcileSyncFolderBtn = $('reconcileSyncFolderBtn');
+    if (reconcileSyncFolderBtn) {
+      reconcileSyncFolderBtn.addEventListener('click', handleReconcileSyncFolder);
+    }
+
+    const pauseSyncBtn = $('pauseSyncBtn');
+    if (pauseSyncBtn) {
+      pauseSyncBtn.addEventListener('click', handlePauseSync);
+    }
+
     // Clear all data button
     $('clearAllDataBtn').addEventListener('click', clearAllData);
 
@@ -5300,6 +5958,8 @@
     renderQueue();
     renderFailedExtractions();
     updateExportStats();
+    await initializeFilesystemSync();
+    updateFilesystemSyncUI();
     
     // Requirements: 2.4, 10.3, 10.4, 8.1, 8.6, 11.4, 11.6 - Update storage-related UI
     await updateAllStorageUI();

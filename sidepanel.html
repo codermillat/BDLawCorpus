@@ -393,6 +393,47 @@
           </label>
         </div>
 
+        <!-- Filesystem Sync Section -->
+        <div id="filesystemSyncSection" class="filesystem-sync-section">
+          <div class="filesystem-sync-header-row">
+            <h4>📁 Local Filesystem Sync</h4>
+            <span id="syncStatusBadge" class="sync-status-badge neutral">Disabled</span>
+          </div>
+          <p class="section-description">Mirror successful acts, failed-act JSONs, manifests, and logs into one local folder with resume support.</p>
+          <div id="syncFolderName" class="sync-folder-name">No folder selected</div>
+          <p id="syncStatusDetail" class="sync-status-detail">Enable sync to choose a folder.</p>
+          <label class="checkbox-label">
+            <input type="checkbox" id="enableFilesystemSync">
+            Enable filesystem sync
+          </label>
+          <div class="sync-controls-row">
+            <button id="selectSyncFolderBtn" class="action-btn secondary">
+              <span class="btn-icon">📂</span>
+              <span class="btn-text">Select Sync Folder</span>
+            </button>
+            <button id="syncNowBtn" class="action-btn secondary">
+              <span class="btn-icon">🔄</span>
+              <span class="btn-text">Sync Now</span>
+            </button>
+          </div>
+          <div class="sync-secondary-actions">
+            <button id="reconnectSyncFolderBtn" class="action-btn secondary small">
+              <span class="btn-icon">🔌</span>
+              <span class="btn-text">Reconnect Folder</span>
+            </button>
+            <button id="reconcileSyncFolderBtn" class="action-btn secondary small">
+              <span class="btn-icon">🧭</span>
+              <span class="btn-text">Reconcile Folder</span>
+            </button>
+            <button id="pauseSyncBtn" class="action-btn secondary small">
+              <span class="btn-icon">⏸</span>
+              <span class="btn-text">Pause Auto Sync</span>
+            </button>
+          </div>
+          <div id="syncStatusLabel" class="sync-status-label">Disabled</div>
+          <div id="syncPendingSummary" class="sync-pending-summary">No pending sync items.</div>
+        </div>
+
         <!-- Cleaning Summary Section -->
         <!-- Requirements: 8.1, 8.2, 8.3 - Show transformation summary when cleaning is enabled -->
         <div id="cleaningSummarySection" class="cleaning-summary-section hidden">
@@ -599,6 +640,8 @@
   <script src="bdlaw-export.js"></script>
   <script src="bdlaw-queue.js"></script>
   <script src="bdlaw-storage.js"></script>
+  <script src="bdlaw-sync-manifest.js"></script>
+  <script src="bdlaw-filesystem-sync.js"></script>
   <script src="bdlaw-corpus-manifest.js"></script>
   <script src="bdlaw-quality.js"></script>
   <script src="sidepanel.js"></script>
