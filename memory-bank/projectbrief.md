@@ -3,7 +3,7 @@
 ## Project Identity
 - **Name**: BDLawCorpus
 - **Type**: Chrome Extension (Manifest V3)
-- **Version**: 1.3.1
+- **Version**: 1.4.0
 - **Repository**: https://github.com/codermillat/BDLawCorpus.git
 - **License**: MIT
 

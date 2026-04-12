@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Schema changes are **additive only**. Fields are never removed, only deprecated.
 
+## [1.4.0] - 2026-04-12
+
+### Changed
+- Bumped repository, package, and extension metadata from `1.3.1` to `1.4.0`
+- Added the named researcher ORCID (`0009-0005-7198-9893`) to release-facing citation metadata
+- Synchronized Zenodo creator metadata with the named affiliation `Sharda University`
+- Updated repository citation guidance to prefer the Zenodo concept DOI until the `v1.4.0` version DOI is minted
+
 ## [1.3.1] - 2026-04-12
 
 ### Added
@@ -196,6 +204,7 @@ Breaking changes (field removal, type changes) require:
 
 | Schema Version | Extension Version | Compatible With |
 |----------------|-------------------|-----------------|
+| 3.1.x | 1.4.x | 3.0.x, 2.x, 1.x consumers |
 | 3.1.x | 1.3.x | 3.0.x, 2.x, 1.x consumers |
 | 3.1.x | 1.2.x | 3.0.x, 2.x, 1.x consumers |
 | 3.0.x | 1.2.x | 2.x, 1.x consumers |

@@ -1,13 +1,14 @@
 # BDLawCorpus
 
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.19539461.svg)](https://doi.org/10.5281/zenodo.19539461)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.19539460.svg)](https://doi.org/10.5281/zenodo.19539460)
 
 BDLawCorpus is a Chrome extension and archival research workflow for building a reproducible, citation-ready corpus of Bangladeshi laws from `bdlaws.minlaw.gov.bd`.
 
 Supports both `http://bdlaws.minlaw.gov.bd` and `https://bdlaws.minlaw.gov.bd` origins.
 
-**Researcher:** MD MILLAT HOSEN  
+**Researcher:** MD MILLAT HOSEN
 **Affiliation:** Sharda University
+**ORCID:** https://orcid.org/0009-0005-7198-9893
 
 ## Academic Positioning Statement
 
@@ -240,12 +241,12 @@ All storage operations are logged for research reproducibility:
 
 See [`CITATION.cff`](CITATION.cff) for academic citation metadata.
 
-- **Version DOI (`v1.3.1`)**: https://doi.org/10.5281/zenodo.19539461
+- **Current release target (`v1.4.0`)**: version-specific Zenodo DOI will be minted after release ingestion
 - **Concept DOI (all versions)**: https://doi.org/10.5281/zenodo.19539460
 
 ### Cite this repository
 
-> Hosen, M. M. (2026). *BDLawCorpus: Browser-Based Archival Snapshot Tool for Bangladeshi Legal Texts* (Version 1.3.1) [Software]. Zenodo. https://doi.org/10.5281/zenodo.19539461
+> Provisional citation until Zenodo mints the `v1.4.0` version DOI: Hosen, M. M. (2026). *BDLawCorpus: Browser-Based Archival Snapshot Tool for Bangladeshi Legal Texts* (Version 1.4.0) [Software]. Zenodo. https://doi.org/10.5281/zenodo.19539460
 
 If you cite the evolving project rather than a specific version, use the concept DOI: https://doi.org/10.5281/zenodo.19539460
 

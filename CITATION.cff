@@ -2,9 +2,9 @@ cff-version: 1.2.0
 message: "If you use this software or dataset, please cite it as below."
 type: software
 title: "BDLawCorpus: Browser-Based Archival Snapshot Tool for Bangladeshi Legal Texts"
-version: "1.3.1"
+version: "1.4.0"
 date-released: "2026-04-12"
-doi: "10.5281/zenodo.19539461"
+doi: "10.5281/zenodo.19539460"
 url: "https://github.com/codermillat/BDLawCorpus"
 repository-code: "https://github.com/codermillat/BDLawCorpus"
 license: MIT
@@ -30,6 +30,7 @@ keywords:
 authors:
   - family-names: "Hosen"
     given-names: "MD MILLAT"
+    orcid: "https://orcid.org/0009-0005-7198-9893"
     affiliation: "Sharda University"
     email: "millat6575@gmail.com"
 preferred-citation:
@@ -38,10 +39,11 @@ preferred-citation:
   authors:
     - family-names: "Hosen"
       given-names: "MD MILLAT"
+      orcid: "https://orcid.org/0009-0005-7198-9893"
       affiliation: "Sharda University"
   year: 2026
-  version: "1.3.1"
-  doi: "10.5281/zenodo.19539461"
+  version: "1.4.0"
+  doi: "10.5281/zenodo.19539460"
   url: "https://github.com/codermillat/BDLawCorpus"
   notes: >-
     Archival snapshot tool capturing browser-rendered DOM text via 
@@ -53,6 +55,6 @@ references:
     url: "http://bdlaws.minlaw.gov.bd"
     notes: "Primary data source - Ministry of Law and Justice, Bangladesh"
   - type: generic
-    title: "Zenodo archive record for BDLawCorpus v1.3.1"
-    doi: "10.5281/zenodo.19539461"
-    url: "https://zenodo.org/records/19539461"
+    title: "Zenodo concept record for BDLawCorpus"
+    doi: "10.5281/zenodo.19539460"
+    url: "https://zenodo.org/records/19539460"

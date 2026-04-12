@@ -4,7 +4,7 @@
 
 **Phase:** Hardening complete for protocol/failure-taxonomy scope; local filesystem sync now in partial implementation / validation phase  
 **Corpus scope:** ~1,500+ Acts across 57 volumes (1799–2026)  
-**Extension:** Chrome MV3 with durable storage, classification-driven retry policy, dual protocol support, in-progress local filesystem sync, and Zenodo DOI-trigger release preparation
+**Extension:** Chrome MV3 with durable storage, classification-driven retry policy, dual protocol support, in-progress local filesystem sync, and synchronized `v1.4.0` release metadata for GitHub/Zenodo archival
 
 ---
 
@@ -124,6 +124,12 @@
   - Concept DOI: `10.5281/zenodo.19539460`
 - Updated `README.md` and `CITATION.cff` to reference the minted DOI.
 - Replaced generic repository author metadata with the identified researcher + affiliation (`MD MILLAT HOSEN`, `Sharda University`).
+
+### v1.4.0 Release Metadata Synchronization
+- Prepared repository metadata for `v1.4.0`.
+- Added the researcher ORCID across citation/release metadata: `https://orcid.org/0009-0005-7198-9893`
+- Updated release-facing metadata files (`package.json`, `package-lock.json`, `manifest.json`, `CITATION.cff`, `.zenodo.json`, `CHANGELOG.md`, `README.md`) to align version, name, and affiliation.
+- Shifted repository citation guidance to the Zenodo concept DOI (`10.5281/zenodo.19539460`) until the `v1.4.0` version DOI is minted after release ingestion.
 
 ---
 

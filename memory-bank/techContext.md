@@ -13,13 +13,13 @@
 - GitHub releases are now part of the publication workflow
 - Repository now includes `.zenodo.json` for Zenodo metadata ingestion
 - `CITATION.cff` is maintained alongside GitHub release metadata for citation/export consistency
-- Current DOI-trigger release preparation version: `1.3.1`
-- Minted Zenodo identifiers for the current release line:
-  - Version DOI: `10.5281/zenodo.19539461`
-  - Concept DOI: `10.5281/zenodo.19539460`
+- Current release preparation version: `1.4.0`
+- Zenodo concept DOI for the repository: `10.5281/zenodo.19539460`
+- Latest minted version DOI before the `v1.4.0` release: `10.5281/zenodo.19539461` (`v1.3.1`)
 - Repository-facing author metadata now uses the named researcher identity instead of a generic contributors label:
   - `MD MILLAT HOSEN`
   - `Sharda University`
+  - `https://orcid.org/0009-0005-7198-9893`
 
 ---
 

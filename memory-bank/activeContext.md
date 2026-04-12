@@ -2,6 +2,11 @@
 
 ## Current Work Focus
 
+Metadata and archival release synchronization for `v1.4.0`, specifically aligning repository release files, Zenodo metadata, and citation records with the named researcher identity:
+- **MD MILLAT HOSEN**
+- **Sharda University**
+- **ORCID:** `https://orcid.org/0009-0005-7198-9893`
+
 Memory-bank synchronization after two related implementation tracks:
 - failed-act classification/readiness hardening
 - local filesystem sync expansion from placeholder UI into a partial working implementation.
@@ -34,6 +39,13 @@ Current emphasis is no longer just "make the sync section visible". The codebase
   - **MD MILLAT HOSEN**
   - **Sharda University**
   - email recorded in `CITATION.cff` / `package.json` where appropriate.
+
+### v1.4.0 Metadata Synchronization
+- Prepared the next release line as `v1.4.0`.
+- Added the researcher ORCID to release-facing metadata:
+  - `https://orcid.org/0009-0005-7198-9893`
+- Updated `CITATION.cff`, `.zenodo.json`, `README.md`, `package.json`, `package-lock.json`, `manifest.json`, and `CHANGELOG.md` to align version and identity metadata.
+- Switched repository-facing citation guidance to the Zenodo **concept DOI** while waiting for Zenodo to mint the version DOI for `v1.4.0` after release ingestion.
 
 ### Filesystem Sync Implementation Expansion
 - Diagnosed the "local file system sync not showing in the sidebar" issue as missing implementation, not a hidden/conditional render bug.
