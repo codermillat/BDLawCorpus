@@ -70,6 +70,15 @@ The codebase now contains a partial local filesystem sync implementation in the 
 - `manifests/sync-manifest.json`
 - `manifests/sync-state.json`
 
+### Checked-in local mirror snapshot (`BDLawsActs/`)
+- Repository currently contains a concrete filesystem-sync mirror folder: `BDLawsActs/`
+- Snapshot verified during memory-bank refresh:
+  - **1570** successful act JSON files in `BDLawsActs/acts/`
+  - **3** failed JSON files in `BDLawsActs/failed/`
+  - manifest counts match folder contents exactly (`1570` successful + `3` failed)
+  - sync state reports `sync_enabled: true`, `permission: "granted"`, `pending_count: 0`
+- Interpretation: the folder is structurally compatible with the current sync runtime and is ready to use as a local mirror/export artifact.
+
 ### Current sidepanel behavior
 - Restores persisted sync state on startup
 - Restores a stored directory handle when possible
@@ -82,6 +91,7 @@ The codebase now contains a partial local filesystem sync implementation in the 
 - Live browser end-to-end validation is still pending
 - Environments without `showDirectoryPicker()` currently surface an error state rather than a full fallback workflow
 - Regression coverage currently proves UI presence, not full sync semantics
+- Even though the checked-in `BDLawsActs/` mirror is internally consistent, that does **not** yet substitute for live browser validation of folder selection, permission recovery, and write flows.
 
 ---
 

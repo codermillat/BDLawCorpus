@@ -10,6 +10,17 @@ Current emphasis is no longer just "make the sync section visible". The codebase
 
 ## Completed in This Session
 
+### BDLawsActs Folder Readiness Review
+- Reviewed the checked-in `BDLawsActs/` local mirror against the current filesystem sync implementation and confirmed the folder layout matches the extension's canonical sync outputs.
+- Confirmed on-disk counts are internally consistent:
+  - `acts/`: **1570** act JSON files
+  - `failed/`: **3** failed extraction JSON files (`96`, `1082`, `1083`)
+  - `manifests/sync-manifest.json`: **1570** successful manifest entries and **3** failed manifest entries
+  - `manifests/sync-state.json`: `sync_enabled: true`, `permission: granted`, `pending_count: 0`
+- Conclusion captured for future sessions: **`BDLawsActs/` is ready to use as a filesystem-sync mirror and does not require extension changes for format compatibility.**
+- Important nuance: the folder is healthy, but the filesystem sync feature as a whole is still considered only partially live-validated because end-to-end browser verification remains pending.
+- Release decision for this session: **do not publish a GitHub release yet**; memory bank updated first, release intentionally deferred.
+
 ### Filesystem Sync Implementation Expansion
 - Diagnosed the "local file system sync not showing in the sidebar" issue as missing implementation, not a hidden/conditional render bug.
 - Added/now present in the codebase:
@@ -116,9 +127,10 @@ Current emphasis is no longer just "make the sync section visible". The codebase
 
 1. Reload the extension in Chrome so the updated queue/sidepanel/content/filesystem-sync code is active
 2. Re-run the failed extraction queue for acts `404`, `500`, `502`, `503`, `504`, `1318`
-3. Confirm only true source-side failures (e.g. `96`, if still server-broken) remain in failed state
+3. Confirm only true source-side failures remain in failed state and reconcile the checked-in `BDLawsActs/failed/` set against current results (`96`, `1082`, `1083` at the time of review)
 4. Run a live browser validation of local filesystem sync:
    - select a folder
    - verify manifest/state/log files are written
    - verify successful and failed act exports land in the expected canonical paths
    - verify reconnect/reconcile/pause behavior after panel reload.
+5. After live validation is complete, prepare the eventual GitHub release/tag from the validated state rather than from the current partially verified sync implementation.

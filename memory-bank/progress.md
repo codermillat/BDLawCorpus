@@ -35,6 +35,8 @@
 - [x] Side panel can schedule and manually trigger filesystem sync flushes
 - [x] Sync flow can write canonical folder contents for acts, failed acts, logs, manifest, and sync state
 - [x] Storage layer persists sync metadata via sync-state helpers and stored directory-handle support
+- [x] Checked-in `BDLawsActs/` mirror matches the extension's canonical filesystem sync layout
+- [x] Checked-in `BDLawsActs/` snapshot is internally consistent (`1570` acts, `3` failed, manifest counts aligned, `pending_count: 0`)
 - [x] Targeted property suites updated and passing:
   - [x] domain property tests
   - [x] page-type property tests
@@ -98,6 +100,20 @@
 - Added scaffold implementation plan:
   - `docs/plans/2026-04-12-filesystem-sync-ui-scaffold.md`
 
+### BDLawsActs Mirror Assessment
+- Reviewed `BDLawsActs/` as a candidate ready-to-use output folder for the current sync implementation.
+- Confirmed the folder already conforms to the extension's expected canonical structure:
+  - `acts/`
+  - `failed/`
+  - `logs/`
+  - `manifests/`
+- Verified concrete snapshot consistency:
+  - `1570` files in `acts/`
+  - `3` files in `failed/` (`96.failed.json`, `1082.failed.json`, `1083.failed.json`)
+  - `sync-manifest.json` counts match disk contents
+  - `sync-state.json` reports granted permission and zero pending work
+- Conclusion: no extension enhancement is required for `BDLawsActs/` folder compatibility; any further work is robustness/validation work, not format-support work.
+
 ---
 
 ## Open / Next Phase Items
@@ -109,6 +125,7 @@
 - [ ] Live browser verification of filesystem sync end-to-end behavior
 - [ ] More regression coverage for filesystem sync runtime/helpers beyond the current markup smoke test
 - [ ] Decide how degraded/no-`showDirectoryPicker()` environments should be messaged and handled long-term
+- [ ] Prepare a GitHub release only after live filesystem sync validation is complete; release was intentionally deferred during this memory-bank-only update
 
 ---
 
