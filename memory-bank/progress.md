@@ -123,6 +123,7 @@
   - Version DOI: `10.5281/zenodo.19539461`
   - Concept DOI: `10.5281/zenodo.19539460`
 - Updated `README.md` and `CITATION.cff` to reference the minted DOI.
+- Replaced generic repository author metadata with the identified researcher + affiliation (`MD MILLAT HOSEN`, `Sharda University`).
 
 ---
 

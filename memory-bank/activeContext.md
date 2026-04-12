@@ -30,6 +30,10 @@ Current emphasis is no longer just "make the sync section visible". The codebase
   - Version DOI: `10.5281/zenodo.19539461`
   - Concept DOI: `10.5281/zenodo.19539460`
 - Follow-up documentation update performed: added DOI references to `README.md` and `CITATION.cff`.
+- Repository metadata was further refined to replace generic contributor labels with the named researcher identity:
+  - **MD MILLAT HOSEN**
+  - **Sharda University**
+  - email recorded in `CITATION.cff` / `package.json` where appropriate.
 
 ### Filesystem Sync Implementation Expansion
 - Diagnosed the "local file system sync not showing in the sidebar" issue as missing implementation, not a hidden/conditional render bug.

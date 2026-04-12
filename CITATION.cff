@@ -28,13 +28,17 @@ keywords:
   - web archiving
   - research tool
 authors:
-  - name: "BDLawCorpus Contributors"
-    affiliation: "Academic Research"
+  - family-names: "Hosen"
+    given-names: "MD MILLAT"
+    affiliation: "Sharda University"
+    email: "millat6575@gmail.com"
 preferred-citation:
   type: software
   title: "BDLawCorpus: Browser-Based Archival Snapshot Tool for Bangladeshi Legal Texts"
   authors:
-    - name: "BDLawCorpus Contributors"
+    - family-names: "Hosen"
+      given-names: "MD MILLAT"
+      affiliation: "Sharda University"
   year: 2026
   version: "1.3.1"
   doi: "10.5281/zenodo.19539461"

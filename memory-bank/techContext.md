@@ -17,6 +17,9 @@
 - Minted Zenodo identifiers for the current release line:
   - Version DOI: `10.5281/zenodo.19539461`
   - Concept DOI: `10.5281/zenodo.19539460`
+- Repository-facing author metadata now uses the named researcher identity instead of a generic contributors label:
+  - `MD MILLAT HOSEN`
+  - `Sharda University`
 
 ---
 
