@@ -10,6 +10,16 @@ Supports both `http://bdlaws.minlaw.gov.bd` and `https://bdlaws.minlaw.gov.bd` o
 **Affiliation:** Sharda University
 **ORCID:** https://orcid.org/0009-0005-7198-9893
 
+## Project Map
+
+The repository now has a simple stage-based structure for the research workflow, and each stage can be published as its own GitHub repository.
+
+- [PROJECT_MAP.md](PROJECT_MAP.md) for the full root-level map
+- [projects/README.md](projects/README.md) for the stage hub
+- \*\*Dataset Pipeline Code\*\*: [codermillat/BDLawCorpus-Dataset-Creator](https://github.com/codermillat/BDLawCorpus-Dataset-Creator). \n- \*\*Hugging Face Dataset\*\*: [codermillat/BDLawCorpus-Dataset-V1](https://huggingface.co/datasets/codermillat/BDLawCorpus-Dataset-V1)
+- [projects/model-finetuning/README.md](projects/model-finetuning/README.md) for fine-tuning
+- [projects/research-paper/README.md](projects/research-paper/README.md) for the manuscript and evaluation
+
 ## Academic Positioning Statement
 
 BDLawCorpus is a browser-based archival system designed to capture and preserve browser-rendered legal texts from the official Bangladesh Laws website (bdlaws.minlaw.gov.bd) for academic research purposes. It provides a transparent, reproducible snapshot of DOM-parsed text as rendered at extraction time, with strict guarantees of content immutability, explicit trust boundaries, and zero legal inference. By separating canonical raw capture (`content_raw`) from all derived representations and documenting structural, numeric, and provenance limitations, BDLawCorpus positions itself as a digital humanities and legal informatics resource rather than an authoritative legal database. The project is intended to support exploratory research in corpus linguistics, information retrieval, and legal text analysis, while explicitly disallowing claims of legal validity, completeness, or Gazette equivalence.
